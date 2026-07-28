@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getProfile, profileIsComplete } from "@/lib/data";
+import { withBasePath } from "@/lib/base-path";
 import { ProfileForm, TeamFork } from "./forms";
 import { AppHeader } from "@/components/app-header";
 import { Chip, Panel } from "@/components/ui";
@@ -8,10 +9,10 @@ export const metadata = { title: "Get set up · FRONTIER 2026" };
 
 export default async function OnboardingPage() {
   const profile = await getProfile();
-  if (!profile) redirect("/login");
+  if (!profile) redirect(withBasePath("/login"));
 
   const complete = profileIsComplete(profile);
-  if (complete && profile.team_id) redirect("/dashboard");
+  if (complete && profile.team_id) redirect(withBasePath("/dashboard"));
 
   const stepNumber = complete ? 2 : 1;
 

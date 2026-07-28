@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { withBasePath } from "@/lib/base-path";
 import { ALLOWED_EMAIL_DOMAIN } from "@/lib/constants";
 import { Button, Notice } from "@/components/ui";
 
@@ -36,7 +37,7 @@ export function LoginForm() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+        redirectTo: `${window.location.origin}${withBasePath("/auth/callback")}?next=${encodeURIComponent(
           next
         )}`,
         queryParams: {

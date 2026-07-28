@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getProfile, getSubmission, getSubmissionDownloadUrl, getTeam, profileIsComplete } from "@/lib/data";
+import { withBasePath } from "@/lib/base-path";
 import { AppHeader } from "@/components/app-header";
 import { CopyCode } from "@/components/copy-code";
 import { ButtonLink, Chip, Panel } from "@/components/ui";
@@ -11,8 +12,8 @@ export const metadata = { title: "Dashboard · FRONTIER 2026" };
 
 export default async function DashboardPage() {
   const profile = await getProfile();
-  if (!profile) redirect("/login");
-  if (!profileIsComplete(profile)) redirect("/onboarding");
+  if (!profile) redirect(withBasePath("/login"));
+  if (!profileIsComplete(profile)) redirect(withBasePath("/onboarding"));
 
   const { team, members } = profile.team_id
     ? await getTeam(profile.team_id)

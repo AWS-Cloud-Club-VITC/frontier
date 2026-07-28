@@ -10,6 +10,10 @@ Student Builder Groups AI challenge at VIT Chennai.
 
 Next.js 15 (App Router) · Supabase (auth, Postgres, storage) · Tailwind · TypeScript.
 
+For a subpath deployment such as `/frontier`, set `NEXT_PUBLIC_BASE_PATH=/frontier`
+at build time and route that path to the deployment from your root site or reverse
+proxy.
+
 ## Routes
 
 | Route | Who | What |

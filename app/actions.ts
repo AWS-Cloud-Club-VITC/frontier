@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { withBasePath } from "@/lib/base-path";
 import { SUBMISSIONS_OPEN, TRACKS } from "@/lib/constants";
 import { getProfile } from "@/lib/data";
 
@@ -97,7 +98,7 @@ export async function createTeam(
   }
 
   revalidatePath("/dashboard");
-  redirect("/dashboard");
+  redirect(withBasePath("/dashboard"));
 }
 
 export async function joinTeam(
@@ -116,7 +117,7 @@ export async function joinTeam(
   }
 
   revalidatePath("/dashboard");
-  redirect("/dashboard");
+  redirect(withBasePath("/dashboard"));
 }
 
 export async function addMember(
@@ -210,11 +211,11 @@ export async function leaveTeam(): Promise<void> {
 
   if (error) {
     console.error("[Action] leaveTeam error:", error);
-    redirect(`/team?error=${encodeURIComponent(clean(error.message))}`);
+    redirect(withBasePath(`/team?error=${encodeURIComponent(clean(error.message))}`));
   }
 
   revalidatePath("/dashboard");
-  redirect("/dashboard");
+  redirect(withBasePath("/dashboard"));
 }
 
 export async function addWalkinRegistration(
@@ -246,7 +247,7 @@ export async function addWalkinRegistration(
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/");
+  redirect(withBasePath("/"));
 }
 
 export async function uploadSubmission(

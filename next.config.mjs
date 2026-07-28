@@ -6,6 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
   // the parent folder holds the PPT generator and its own lockfile; pin the
   // trace root here so Next doesn't walk up into it
   outputFileTracingRoot: __dirname,

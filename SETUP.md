@@ -81,7 +81,7 @@ seconds.
 | Project URL | `NEXT_PUBLIC_SUPABASE_URL` |
 | `anon` / `public` key | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
 
-Create `web/.env.local` (copy `web/.env.local.example`) and paste them in:
+Create `.env.local` (copy `.env.local.example`) and paste them in:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://abcdefgh.supabase.co
@@ -124,7 +124,7 @@ The database still enforces the domain regardless of how someone signs in — se
 ## 6. Run it locally
 
 ```bash
-cd web && npm install && npm run dev
+npm install && npm run dev
 ```
 
 Open <http://localhost:3000>.
@@ -138,15 +138,41 @@ appears.
 ## 7. Deploy
 
 1. Push this repo to GitHub.
-2. On [vercel.com](https://vercel.com), import the repo.
-3. Set **Root Directory** to `web`.
-4. Add both environment variables from step 3 under **Environment Variables**.
-5. Deploy.
+2. On [vercel.com](https://vercel.com), import the repo as its **own, separate**
+   Vercel project (do not add it to the existing `awscloudclubvit.in` project). Leave
+   **Root Directory** at its default — the app lives at the repo root, there is no
+   `web/` subfolder.
+3. Add both environment variables from step 4 under **Environment Variables**.
+4. Also add `NEXT_PUBLIC_BASE_PATH=/frontier` — this mounts the app at
+   `awscloudclubvit.in/frontier` instead of its own root.
+5. Deploy. You'll get a URL like `frontier-2026.vercel.app` — the app will 404 at
+   `/` on that domain since everything now lives under `/frontier`; that's expected,
+   `frontier-2026.vercel.app/frontier` is what you check.
 6. Back in Supabase: **Authentication** → **URL Configuration** → set **Site URL**
-   to your Vercel domain, and add it under **Redirect URLs**.
-7. The Google OAuth redirect URI from step 4 (`https://<project>.supabase.co/auth/v1/callback`)
-   doesn't change for production — Supabase is always the OAuth callback target, not
-   Vercel. Nothing to update in Google Cloud Console.
+   to `https://awscloudclubvit.in`, and add `https://awscloudclubvit.in/frontier/**`
+   under **Redirect URLs**.
+7. The Google OAuth redirect URI from step 4 of section 5
+   (`https://<project>.supabase.co/auth/v1/callback`) doesn't change for production —
+   Supabase is always the OAuth callback target, not Vercel. Nothing to update in
+   Google Cloud Console.
+8. In the **existing** Vercel project that serves `awscloudclubvit.in`, add (or merge
+   into) `vercel.json` at its root:
+
+   ```json
+   {
+     "rewrites": [
+       { "source": "/frontier", "destination": "https://frontier-2026.vercel.app/frontier" },
+       { "source": "/frontier/:path*", "destination": "https://frontier-2026.vercel.app/frontier/:path*" }
+     ]
+   }
+   ```
+
+   Replace `frontier-2026.vercel.app` with the actual `.vercel.app` domain from step 5
+   (a stable `vercel.app` alias, not a per-deploy preview URL). Commit and redeploy
+   that project. Vercel proxies the request server-side, so this works without CORS
+   issues and without needing a custom domain on the Frontier project itself.
+9. Visit `https://awscloudclubvit.in/frontier` and confirm sign-in works end to end —
+   the OAuth redirect has to round-trip through the rewrite correctly.
 
 ---
 
@@ -172,7 +198,7 @@ counts, the CSV export, and the walk-in registration form for the reg desk.
 
 ### Open submissions
 
-`web/lib/constants.ts`:
+`lib/constants.ts`:
 
 ```ts
 export const SUBMISSIONS_OPEN = true;
@@ -186,22 +212,22 @@ still needs building; the dashboard card and the database side are ready for it.
 
 Two placeholder blocks are waiting for the schedule:
 
-- `web/app/page.tsx` — the **Event flow** section on the landing page
-- `web/app/dashboard/page.tsx` — the **Event flow** card in the sidebar
+- `app/page.tsx` — the **Event flow** section on the landing page
+- `app/dashboard/page.tsx` — the **Event flow** card in the sidebar
 
 Both are marked with `Coming soon` chips. Replace the dashed placeholder boxes with
 the real hour-by-hour schedule when you have it.
 
 ### Swap in the real AWS logo
 
-The chip mark in `web/components/logo.tsx` is a vector stand-in — correct colours and
+The chip mark in `components/logo.tsx` is a vector stand-in — correct colours and
 geometry, but without the AWS smile. Drop the real transparent PNG into
-`web/public/aws-sbg.png` and replace the `<svg>` in `ChipMark` with an `<Image>`.
+`public/aws-sbg.png` and replace the `<svg>` in `ChipMark` with an `<Image>`.
 
 ### Change the allowed email domain
 
-`ALLOWED_EMAIL_DOMAIN` in `web/lib/constants.ts` for the form message, the `hd`
-query param sent to Google in `web/app/login/login-form.tsx`, **and** the
+`ALLOWED_EMAIL_DOMAIN` in `lib/constants.ts` for the form message, the `hd`
+query param sent to Google in `app/login/login-form.tsx`, **and** the
 `enforce_vit_domain` function in `schema.sql` for the real enforcement. Change all
 three or they'll disagree. Also confirm the new domain is actually on Google
 Workspace (check its MX records) — OAuth won't work otherwise.
