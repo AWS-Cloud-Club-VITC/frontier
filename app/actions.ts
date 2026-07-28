@@ -44,10 +44,20 @@ export async function saveProfile(
 
   const { error } = await supabase
     .from("profiles")
-    .update({ full_name, reg_no, phone: phone || null, year })
-    .eq("id", user.id);
+    .upsert(
+      {
+        id: user.id,
+        email: user.email?.toLowerCase() ?? "",
+        full_name,
+        reg_no,
+        phone: phone || null,
+        year,
+      },
+      { onConflict: "id" }
+    );
 
   if (error) {
+    console.error("[Action] saveProfile error:", error);
     if (error.code === "23505") {
       return { error: "That registration number is already registered." };
     }
@@ -80,6 +90,7 @@ export async function createTeam(
   });
 
   if (error) {
+    console.error("[Action] createTeam error:", error);
     if (error.code === "23505") return { error: "That team name is taken." };
     return { error: clean(error.message) };
   }
@@ -98,7 +109,10 @@ export async function joinTeam(
   if (code.length !== 6) return { error: "Join codes are 6 characters." };
 
   const { error } = await supabase.rpc("join_team_by_code", { p_code: code });
-  if (error) return { error: clean(error.message) };
+  if (error) {
+    console.error("[Action] joinTeam error:", error);
+    return { error: clean(error.message) };
+  }
 
   revalidatePath("/dashboard");
   redirect("/dashboard");
@@ -114,7 +128,10 @@ export async function addMember(
   if (!email) return { error: "Enter their email address." };
 
   const { error } = await supabase.rpc("add_member_by_email", { p_email: email });
-  if (error) return { error: clean(error.message) };
+  if (error) {
+    console.error("[Action] addMember error:", error);
+    return { error: clean(error.message) };
+  }
 
   revalidatePath("/team");
   revalidatePath("/dashboard");
@@ -129,7 +146,10 @@ export async function removeMember(
   const id = str(formData.get("member_id"));
 
   const { error } = await supabase.rpc("remove_member", { p_id: id });
-  if (error) return { error: clean(error.message) };
+  if (error) {
+    console.error("[Action] removeMember error:", error);
+    return { error: clean(error.message) };
+  }
 
   revalidatePath("/team");
   revalidatePath("/dashboard");
@@ -144,7 +164,10 @@ export async function transferLead(
   const id = str(formData.get("member_id"));
 
   const { error } = await supabase.rpc("transfer_lead", { p_id: id });
-  if (error) return { error: clean(error.message) };
+  if (error) {
+    console.error("[Action] transferLead error:", error);
+    return { error: clean(error.message) };
+  }
 
   revalidatePath("/team");
   revalidatePath("/dashboard");
@@ -170,6 +193,7 @@ export async function updateTeam(
   });
 
   if (error) {
+    console.error("[Action] updateTeam error:", error);
     if (error.code === "23505") return { error: "That team name is taken." };
     return { error: clean(error.message) };
   }
@@ -184,6 +208,7 @@ export async function leaveTeam(): Promise<void> {
   const { error } = await supabase.rpc("leave_team");
 
   if (error) {
+    console.error("[Action] leaveTeam error:", error);
     redirect(`/team?error=${encodeURIComponent(clean(error.message))}`);
   }
 

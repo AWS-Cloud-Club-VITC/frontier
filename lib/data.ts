@@ -34,13 +34,48 @@ export async function getProfile(): Promise<Profile | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
 
-  return (data as Profile) ?? null;
+    if (data) {
+      return data as Profile;
+    }
+
+    // Newly registered user — attempt fallback profile insertion if trigger was delayed/missed
+    if (user.email) {
+      const { data: newProfile } = await supabase
+        .from("profiles")
+        .upsert(
+          { id: user.id, email: user.email.toLowerCase() },
+          { onConflict: "id" }
+        )
+        .select("*")
+        .maybeSingle();
+
+      if (newProfile) {
+        return newProfile as Profile;
+      }
+    }
+  } catch (error) {
+    console.error("[getProfile] error fetching profile:", error);
+  }
+
+  // Basic profile object shell for authenticated user to allow onboarding access
+  return {
+    id: user.id,
+    email: user.email ?? "",
+    full_name: null,
+    reg_no: null,
+    phone: null,
+    year: null,
+    team_id: null,
+    role: "participant",
+    created_at: new Date().toISOString(),
+  };
 }
 
 export function profileIsComplete(p: Profile | null) {

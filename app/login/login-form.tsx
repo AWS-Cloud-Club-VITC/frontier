@@ -53,13 +53,14 @@ export function LoginForm() {
     setBusy(false);
 
     if (error) {
+      console.error("[Login] signInWithOtp error:", error);
       setError(describe(error.message));
       return;
     }
 
     setEmail(clean);
     setStep("code");
-    setNotice(`We sent a 6-digit code to ${clean}. It expires in 1 hour.`);
+    setNotice(`We sent a verification code to ${clean}. It expires in 1 hour.`);
   }
 
   async function verify(e: React.FormEvent) {
@@ -76,6 +77,7 @@ export function LoginForm() {
     setBusy(false);
 
     if (error) {
+      console.error("[Login] verifyOtp error:", error);
       const m = error.message.toLowerCase();
       if (m.includes("failed to fetch") || m.includes("network")) {
         setError(describe(error.message));
@@ -117,15 +119,15 @@ export function LoginForm() {
     <form onSubmit={verify} className="space-y-5">
       {notice && <Notice tone="info">{notice}</Notice>}
       <Field
-        label="6-digit code"
+        label="Verification code"
         inputMode="numeric"
         autoComplete="one-time-code"
         required
-        maxLength={6}
-        placeholder="000000"
+        maxLength={8}
+        placeholder="00000000"
         value={code}
         onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-        className="text-center font-mono text-2xl tracking-[0.5em]"
+        className="text-center font-mono text-2xl tracking-[0.3em]"
       />
       {error && <Notice tone="error">{error}</Notice>}
       <Button type="submit" disabled={busy || code.length < 6} className="w-full">

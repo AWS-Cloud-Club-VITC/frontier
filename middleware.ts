@@ -35,8 +35,9 @@ export async function middleware(request: NextRequest) {
   try {
     const { data } = await supabase.auth.getUser();
     user = data.user;
-  } catch {
-    // Supabase unreachable. Treat as signed out rather than 500-ing every route.
+  } catch (error) {
+    console.error("[Middleware] auth token refresh / getUser error:", error);
+    // Supabase unreachable or invalid. Treat as signed out rather than 500-ing every route.
     user = null;
   }
 

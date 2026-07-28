@@ -351,6 +351,10 @@ create policy profiles_update on public.profiles for update to authenticated
   using (id = auth.uid())
   with check (id = auth.uid());
 
+drop policy if exists profiles_insert on public.profiles;
+create policy profiles_insert on public.profiles for insert to authenticated
+  with check (id = auth.uid());
+
 drop policy if exists teams_select on public.teams;
 create policy teams_select on public.teams for select to authenticated
   using (id = public.my_team_id() or public.is_admin());
@@ -374,7 +378,7 @@ create policy submissions_update on public.submissions for update to authenticat
 -- -------------------------------------------------------------- grants ----
 
 grant usage on schema public to authenticated;
-grant select, update on public.profiles    to authenticated;
+grant select, insert, update on public.profiles to authenticated;
 grant select          on public.teams       to authenticated;
 grant select, insert, update on public.submissions to authenticated;
 
