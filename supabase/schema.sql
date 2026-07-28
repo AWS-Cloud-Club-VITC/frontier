@@ -507,7 +507,7 @@ to authenticated;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
-  'submissions', 'submissions', false, 26214400,
+  'submissions', 'submissions', false, 8388608,
   array['application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'application/pdf']
 )

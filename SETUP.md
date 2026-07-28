@@ -32,14 +32,14 @@ The file is safe to run again if you need to reapply it.
 
 **What it enforces, so you know it's there:**
 
-| Rule | Where it lives |
-|---|---|
-| Only `@vitstudent.ac.in` can register | Trigger on `auth.users` |
-| Only emails on the `registrations` allowlist can sign in | Trigger on `auth.users` |
-| Max 4 members per team | Trigger with an advisory lock, so two people joining at once can't both slip through |
-| Nobody can make themselves an admin | Trigger blocking `role` changes |
-| Nobody can join a team without the code | Trigger blocking direct `team_id` writes |
-| One person, one team | Unique constraint |
+| Rule                                                     | Where it lives                                                                       |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Only `@vitstudent.ac.in` can register                    | Trigger on `auth.users`                                                              |
+| Only emails on the `registrations` allowlist can sign in | Trigger on `auth.users`                                                              |
+| Max 4 members per team                                   | Trigger with an advisory lock, so two people joining at once can't both slip through |
+| Nobody can make themselves an admin                      | Trigger blocking `role` changes                                                      |
+| Nobody can join a team without the code                  | Trigger blocking direct `team_id` writes                                             |
+| One person, one team                                     | Unique constraint                                                                    |
 
 ---
 
@@ -76,10 +76,10 @@ seconds.
 
 **Project Settings** → **API**. You need two values:
 
-| Field in the dashboard | Goes into |
-|---|---|
-| Project URL | `NEXT_PUBLIC_SUPABASE_URL` |
-| `anon` / `public` key | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| Field in the dashboard | Goes into                       |
+| ---------------------- | ------------------------------- |
+| Project URL            | `NEXT_PUBLIC_SUPABASE_URL`      |
+| `anon` / `public` key  | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
 
 Create `.env.local` (copy `.env.local.example`) and paste them in:
 
@@ -161,8 +161,14 @@ appears.
    ```json
    {
      "rewrites": [
-       { "source": "/frontier", "destination": "https://frontier-2026.vercel.app/frontier" },
-       { "source": "/frontier/:path*", "destination": "https://frontier-2026.vercel.app/frontier/:path*" }
+       {
+         "source": "/frontier",
+         "destination": "https://frontier-2026.vercel.app/frontier"
+       },
+       {
+         "source": "/frontier/:path*",
+         "destination": "https://frontier-2026.vercel.app/frontier/:path*"
+       }
      ]
    }
    ```
@@ -171,6 +177,7 @@ appears.
    (a stable `vercel.app` alias, not a per-deploy preview URL). Commit and redeploy
    that project. Vercel proxies the request server-side, so this works without CORS
    issues and without needing a custom domain on the Frontier project itself.
+
 9. Visit `https://awscloudclubvit.in/frontier` and confirm sign-in works end to end —
    the OAuth redirect has to round-trip through the rewrite correctly.
 
@@ -204,7 +211,7 @@ counts, the CSV export, and the walk-in registration form for the reg desk.
 export const SUBMISSIONS_OPEN = true;
 ```
 
-Commit and redeploy. The storage bucket, size limit (25 MB) and access policies are
+Commit and redeploy. The storage bucket, size limit (8 MB) and access policies are
 already in place from step 2 — the upload UI is what's gated. The upload form itself
 still needs building; the dashboard card and the database side are ready for it.
 

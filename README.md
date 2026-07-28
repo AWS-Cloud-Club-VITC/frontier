@@ -16,15 +16,15 @@ proxy.
 
 ## Routes
 
-| Route | Who | What |
-|---|---|---|
-| `/` | Everyone | Event landing page |
-| `/login` | Everyone | Sign in with VIT Google account |
-| `/onboarding` | Signed in | Profile details, then create or join a team |
-| `/dashboard` | Signed in | Team roster, join code, submission status |
-| `/team` | Team leads | Add/remove members, transfer lead, rename, change track |
-| `/admin` | Organisers | Stats, walk-in sign-in, tabbed data portal (participants/teams/submissions/registrations) |
-| `/admin/export?dataset=…` | Organisers | CSV download — `participants` (default), `teams`, `submissions`, or `registrations` |
+| Route                     | Who        | What                                                                                      |
+| ------------------------- | ---------- | ----------------------------------------------------------------------------------------- |
+| `/`                       | Everyone   | Event landing page                                                                        |
+| `/login`                  | Everyone   | Sign in with VIT Google account                                                           |
+| `/onboarding`             | Signed in  | Profile details, then create or join a team                                               |
+| `/dashboard`              | Signed in  | Team roster, join code, submission status                                                 |
+| `/team`                   | Team leads | Add/remove members, transfer lead, rename, change track                                   |
+| `/admin`                  | Organisers | Stats, walk-in sign-in, tabbed data portal (participants/teams/submissions/registrations) |
+| `/admin/export?dataset=…` | Organisers | CSV download — `participants` (default), `teams`, `submissions`, or `registrations`       |
 
 ## Who can sign in
 

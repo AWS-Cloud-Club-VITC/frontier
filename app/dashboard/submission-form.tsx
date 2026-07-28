@@ -56,7 +56,7 @@ export function SubmissionForm({
 
       <p className="mt-3 font-sans text-sm text-grey">
         {submissionsOpen
-          ? "Upload your filled-in slide deck (.pdf or .pptx, max 25 MB). You can replace it any number of times before the deadline."
+          ? "Upload your filled-in slide deck (.pdf or .pptx, max 8 MB). You can replace it any number of times before the deadline."
           : "Slide uploads open when the build starts. Use the template — decks in other formats will not be accepted."}
       </p>
 
@@ -135,7 +135,7 @@ export function SubmissionForm({
                 </div>
               ) : (
                 <div className="mt-2 font-sans text-xs text-grey">
-                  Click to browse files (25 MB max)
+                  Click to browse files (8 MB max)
                 </div>
               )}
               <input

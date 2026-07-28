@@ -274,9 +274,9 @@ export async function uploadSubmission(
     return { error: "Please select a deck file (.pdf or .pptx) to upload." };
   }
 
-  // 25 MB size limit (26,214,400 bytes)
-  if (file.size > 26214400) {
-    return { error: "File exceeds maximum allowed size of 25 MB." };
+  // 8 MB size limit (8,388,608 bytes)
+  if (file.size > 8388608) {
+    return { error: "File exceeds maximum allowed size of 8 MB." };
   }
 
   const ext = file.name.split(".").pop()?.toLowerCase();

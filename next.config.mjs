@@ -11,10 +11,10 @@ const nextConfig = {
   // trace root here so Next doesn't walk up into it
   outputFileTracingRoot: __dirname,
   experimental: {
-    // matches the 25 MB cap enforced in uploadSubmission (app/actions.ts) — the
+    // matches the 8 MB cap enforced in uploadSubmission (app/actions.ts) — the
     // server action's own body limit defaults to 1 MB and rejects the file first
     serverActions: {
-      bodySizeLimit: "25mb",
+      bodySizeLimit: "8mb",
     },
   },
 };
