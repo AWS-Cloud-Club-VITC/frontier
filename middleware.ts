@@ -1,6 +1,5 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { stripBasePath, withBasePath } from "@/lib/base-path";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
@@ -42,18 +41,21 @@ export async function middleware(request: NextRequest) {
     user = null;
   }
 
-  const path = stripBasePath(request.nextUrl.pathname);
+  // request.nextUrl.pathname is already basePath-stripped by Next.js, and
+  // NextURL re-adds the configured basePath automatically when the cloned
+  // url below is serialized — do not prefix it manually here or it doubles up.
+  const path = request.nextUrl.pathname;
 
   if (!user && PROTECTED.some((p) => path.startsWith(p))) {
     const url = request.nextUrl.clone();
-    url.pathname = withBasePath("/login");
+    url.pathname = "/login";
     url.searchParams.set("next", path);
     return NextResponse.redirect(url);
   }
 
   if (user && path === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = withBasePath("/dashboard");
+    url.pathname = "/dashboard";
     url.search = "";
     return NextResponse.redirect(url);
   }

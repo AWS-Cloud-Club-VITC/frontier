@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, getSubmissionDownloadUrl } from "@/lib/data";
-import { withBasePath } from "@/lib/base-path";
 import { AppHeader } from "@/components/app-header";
 import { Chip, Panel } from "@/components/ui";
 import { TRACKS } from "@/lib/constants";
@@ -45,7 +44,7 @@ type RegistrationQueryRow = {
 
 export default async function AdminPage() {
   const profile = await getProfile();
-  if (!profile) redirect(withBasePath("/login"));
+  if (!profile) redirect("/login");
 
   if (profile.role !== "admin") {
     return (

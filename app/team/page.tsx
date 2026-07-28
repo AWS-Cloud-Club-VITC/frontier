@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getProfile, getTeam, profileIsComplete } from "@/lib/data";
-import { withBasePath } from "@/lib/base-path";
 import { AppHeader } from "@/components/app-header";
 import { CopyCode } from "@/components/copy-code";
 import { Chip, Notice, Panel } from "@/components/ui";
@@ -18,15 +17,15 @@ export default async function TeamPage({
 }) {
   const { error } = await searchParams;
   const profile = await getProfile();
-  if (!profile) redirect(withBasePath("/login"));
-  if (!profileIsComplete(profile)) redirect(withBasePath("/onboarding"));
-  if (!profile.team_id) redirect(withBasePath("/dashboard"));
+  if (!profile) redirect("/login");
+  if (!profileIsComplete(profile)) redirect("/onboarding");
+  if (!profile.team_id) redirect("/dashboard");
 
   const { team, members } = await getTeam(profile.team_id);
-  if (!team) redirect(withBasePath("/dashboard"));
+  if (!team) redirect("/dashboard");
 
   const isLead = team.leader_id === profile.id;
-  if (!isLead) redirect(withBasePath("/dashboard"));
+  if (!isLead) redirect("/dashboard");
 
   const full = members.length >= MAX_TEAM_SIZE;
 
