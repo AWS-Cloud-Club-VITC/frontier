@@ -1,9 +1,8 @@
 # FRONTIER 2026 — setup
 
-Everything you need to get the site live. Roughly 20 minutes, plus DNS wait if you
-set up a custom sender domain.
+Everything you need to get the site live. Roughly 20 minutes.
 
-Work through these in order. Steps 1–5 get it running locally; 6–7 get it in front
+Work through these in order. Steps 1–6 get it running locally; 7 gets it in front
 of participants.
 
 ---
@@ -36,6 +35,7 @@ The file is safe to run again if you need to reapply it.
 | Rule | Where it lives |
 |---|---|
 | Only `@vitstudent.ac.in` can register | Trigger on `auth.users` |
+| Only emails on the `registrations` allowlist can sign in | Trigger on `auth.users` |
 | Max 4 members per team | Trigger with an advisory lock, so two people joining at once can't both slip through |
 | Nobody can make themselves an admin | Trigger blocking `role` changes |
 | Nobody can join a team without the code | Trigger blocking direct `team_id` writes |
@@ -43,7 +43,36 @@ The file is safe to run again if you need to reapply it.
 
 ---
 
-## 3. Get your keys
+## 3. Import the registration allowlist
+
+Sign-in is gated on the `registrations` table — an email has to be in there before
+Google will let that person into the app at all. This is what keeps randoms off the
+site and gives you a clean cross-check against who actually registered.
+
+1. **Table Editor** → `registrations` → **Insert** → **Import data from CSV**.
+2. Export your registration spreadsheet as CSV with an `email` column (and optionally
+   `full_name`, `reg_no` — column names must match exactly, or map them in the import
+   dialog). Upload it.
+3. **Add yourself now, before you go further** — you can't sign in otherwise, and you
+   need to sign in once before you can be made an organiser in step 8. Either add a row
+   for yourself in the same import, or run this in the SQL editor:
+
+```sql
+insert into public.registrations (email) values ('your.name2023@vitstudent.ac.in')
+on conflict (lower(email)) do nothing;
+```
+
+Anyone not on this list who tries to sign in gets turned away with a message pointing
+them to the registration desk. For people who show up on the day without having
+pre-registered, the fix is **not** to re-run this CSV import — that's for the initial
+bulk load only. Instead, once you're an organiser (step 8), use the **"Add a walk-in"**
+form on `/admin`: it inserts into the same table through a permission-checked function,
+so a signed-in organiser can add someone on the spot and they can sign in within
+seconds.
+
+---
+
+## 4. Get your keys
 
 **Project Settings** → **API**. You need two values:
 
@@ -67,44 +96,32 @@ file or anywhere in the repo.** It bypasses every policy above.
 
 ---
 
-## 4. Switch the email from a link to a code
+## 5. Set up Google OAuth sign-in
 
-**This is the step people miss.** Supabase sends a magic *link* by default. The app
-asks for a 6-digit *code*. If you skip this, participants get an email with a link
-and nothing to type in.
+The app signs people in with their VIT Google account (`@vitstudent.ac.in` is a Google
+Workspace domain, confirmed via its MX records) instead of an emailed code. This
+sidesteps Supabase's email rate limits entirely — no email is sent to sign in.
 
-1. **Authentication** → **Emails** → **Magic Link** template.
-2. Replace the template body with this:
+1. In [Google Cloud Console](https://console.cloud.google.com), create (or reuse) a
+   project, then **APIs & Services** → **Credentials** → **Create Credentials** →
+   **OAuth client ID** → type **Web application**.
+2. Add this **Authorized redirect URI** (get the exact value from Supabase in the
+   next step, it's the same for local dev and production):
+   `https://<your-project-ref>.supabase.co/auth/v1/callback`
+3. Save, then copy the generated **Client ID** and **Client Secret**.
+4. In Supabase: **Authentication** → **Providers** → **Google** → paste the Client ID
+   and Client Secret, enable the provider, save.
+5. Optional but recommended: on the Google Cloud **OAuth consent screen**, restrict
+   the app to your Workspace org (**Internal** user type) if you have access to do so.
+   This is a stronger guarantee than the `hd=vitstudent.ac.in` hint the app sends —
+   that hint only pre-fills the account picker, it doesn't block other accounts.
 
-```html
-<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
-  <div style="border:3px solid #0E141B;padding:28px;">
-    <p style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#7C4DE8;margin:0 0 18px;">
-      FRONTIER 2026 &middot; AWS Student Builder Groups
-    </p>
-    <h1 style="font-size:26px;margin:0 0 14px;color:#0E141B;">Your sign-in code</h1>
-    <p style="font-size:15px;line-height:1.5;color:#667180;margin:0 0 22px;">
-      Type this into the FRONTIER registration page. It expires in one hour.
-    </p>
-    <div style="border:3px solid #0E141B;background:#7C4DE8;color:#ffffff;font-family:'Courier New',monospace;font-size:34px;font-weight:bold;letter-spacing:10px;text-align:center;padding:18px 10px;">
-      {{ .Token }}
-    </div>
-    <p style="font-size:13px;line-height:1.5;color:#9AA3AE;margin:22px 0 0;">
-      If you didn't request this, ignore this email — nobody can sign in without the code.
-    </p>
-  </div>
-</div>
-```
-
-3. Save. The `{{ .Token }}` placeholder is what makes it a code instead of a link.
-4. While you're here, set the **subject** to something recognisable:
-   `Your FRONTIER sign-in code`.
-
-Also check **Authentication** → **Providers** → **Email** is enabled (it is by default).
+The database still enforces the domain regardless of how someone signs in — see
+`enforce_vit_domain` in `schema.sql`, which fires on every new `auth.users` row.
 
 ---
 
-## 5. Run it locally
+## 6. Run it locally
 
 ```bash
 cd web && npm install && npm run dev
@@ -112,29 +129,9 @@ cd web && npm install && npm run dev
 
 Open <http://localhost:3000>.
 
-Sign in with your own VIT email to check the whole flow end to end: code arrives,
-profile form saves, team creation works, join code appears.
-
----
-
-## 6. Set up a real email sender — do this before you share the link
-
-Supabase's built-in email service is **rate limited to a handful of messages per
-hour**. That is fine while you test and completely inadequate on the day: if 60
-students hit register at once, most of them get nothing and you spend the morning
-fielding "I didn't get the code" messages.
-
-1. Create a free account with [Resend](https://resend.com) (3,000 emails/month free)
-   or Brevo. Verify a sending domain, or use their test sender for a small event.
-2. In Supabase: **Project Settings** → **Authentication** → **SMTP Settings** →
-   **Enable Custom SMTP**.
-3. Fill in the host, port `587`, username and password from your email provider.
-   Set the sender name to `FRONTIER 2026`.
-4. Then raise the limit: **Authentication** → **Rate Limits** → set
-   **Emails per hour** to something realistic for your expected signup burst
-   (500 is sensible).
-
-Send yourself a test code afterwards to confirm delivery still works.
+Sign in with your own VIT Google account to check the whole flow end to end: Google
+consent screen, redirect back, profile form saves, team creation works, join code
+appears.
 
 ---
 
@@ -147,12 +144,16 @@ Send yourself a test code afterwards to confirm delivery still works.
 5. Deploy.
 6. Back in Supabase: **Authentication** → **URL Configuration** → set **Site URL**
    to your Vercel domain, and add it under **Redirect URLs**.
+7. The Google OAuth redirect URI from step 4 (`https://<project>.supabase.co/auth/v1/callback`)
+   doesn't change for production — Supabase is always the OAuth callback target, not
+   Vercel. Nothing to update in Google Cloud Console.
 
 ---
 
 ## 8. Make yourself an organiser
 
-The `/admin` page is gated on a role column, not a secret URL. Register on the live
+The `/admin` page is gated on a role column, not a secret URL. You should already be
+able to sign in — you added yourself to `registrations` in step 3. Sign in on the live
 site first, then run this in the Supabase SQL editor:
 
 ```sql
@@ -161,8 +162,9 @@ set role = 'admin'
 where email = 'your.name2023@vitstudent.ac.in';
 ```
 
-Repeat for each organiser. Reload `/admin` and you'll see the roster, the per-track
-counts, and the CSV export.
+Repeat for each organiser (add each one to `registrations` first if they aren't
+already, same as step 3). Reload `/admin` and you'll see the roster, the per-track
+counts, the CSV export, and the walk-in registration form for the reg desk.
 
 ---
 
@@ -198,9 +200,11 @@ geometry, but without the AWS smile. Drop the real transparent PNG into
 
 ### Change the allowed email domain
 
-`ALLOWED_EMAIL_DOMAIN` in `web/lib/constants.ts` for the form message, **and** the
-`enforce_vit_domain` function in `schema.sql` for the real enforcement. Change both
-or the two will disagree.
+`ALLOWED_EMAIL_DOMAIN` in `web/lib/constants.ts` for the form message, the `hd`
+query param sent to Google in `web/app/login/login-form.tsx`, **and** the
+`enforce_vit_domain` function in `schema.sql` for the real enforcement. Change all
+three or they'll disagree. Also confirm the new domain is actually on Google
+Workspace (check its MX records) — OAuth won't work otherwise.
 
 ---
 
@@ -209,8 +213,16 @@ or the two will disagree.
 **"Database error saving new user"** on sign-up — the email isn't a
 `@vitstudent.ac.in` address, and the trigger rejected it. Working as intended.
 
-**Code email never arrives** — check the spam folder, then check
-**Authentication** → **Logs** in Supabase. If you see rate-limit errors, do step 6.
+**"This email is not on the FRONTIER registration list"** — the email isn't in the
+`registrations` table. Either the CSV import missed them (check with `select * from
+registrations where lower(email) = lower('their@email')`), or they're a genuine
+walk-in — add them from the **"Add a walk-in"** form on `/admin`, or with the SQL
+snippet in step 3.
+
+**"Sign-in failed" after the Google consent screen** — check **Authentication** →
+**Logs** in Supabase. Usually the redirect URI in Google Cloud Console doesn't
+exactly match `https://<project>.supabase.co/auth/v1/callback`, or the Google
+provider isn't enabled/saved in Supabase yet.
 
 **Participant is stuck on a team they shouldn't be on** — as the lead they can remove
 members from `/team`. If the lead is unreachable, fix it directly:

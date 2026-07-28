@@ -44,8 +44,19 @@ create table if not exists public.submissions (
   submitted_at timestamptz not null default now()
 );
 
+create table if not exists public.registrations (
+  id         uuid primary key default gen_random_uuid(),
+  email      text not null,
+  full_name  text,
+  reg_no     text,
+  added_by   uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
 create index if not exists profiles_team_id_idx on public.profiles(team_id);
 create index if not exists teams_join_code_idx  on public.teams(join_code);
+-- case-insensitive: the pre-event Excel import and reg-desk entries won't agree on case
+create unique index if not exists registrations_email_lower_idx on public.registrations (lower(email));
 
 -- ------------------------------------------------------------- helpers ----
 -- SECURITY DEFINER so they run as the table owner and bypass RLS. This is what
@@ -98,11 +109,46 @@ create trigger enforce_vit_domain_trg
   before insert on auth.users
   for each row execute function public.enforce_vit_domain();
 
--- 2. Every new auth user gets a profile row.
-create or replace function public.handle_new_user()
+-- 1b. Only people on the registrations allowlist may sign in — imported from the
+--     pre-event Excel, or added on the spot by reg-desk staff via add_walkin_registration.
+create or replace function public.enforce_preregistered()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  insert into public.profiles (id, email) values (new.id, lower(new.email))
+  if not exists (
+    select 1 from public.registrations where lower(email) = lower(new.email)
+  ) then
+    raise exception 'This email is not on the FRONTIER registration list. See the registration desk to be added.';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists enforce_preregistered_trg on auth.users;
+create trigger enforce_preregistered_trg
+  before insert on auth.users
+  for each row execute function public.enforce_preregistered();
+
+-- 2. Every new auth user gets a profile row, pre-filled from their registrations
+--    entry if the Excel import (or reg-desk walk-in add) had a name/reg_no on file —
+--    so pre-registered students don't have to retype what's already known.
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v_full_name text;
+  v_reg_no    text;
+begin
+  select full_name, reg_no into v_full_name, v_reg_no
+  from public.registrations
+  where lower(email) = lower(new.email)
+  limit 1;
+
+  -- reg_no is unique on profiles — a bad import with a duplicate reg_no must not
+  -- block account creation outright, so just skip pre-filling it in that case.
+  if v_reg_no is not null and exists (select 1 from public.profiles where reg_no = v_reg_no) then
+    v_reg_no := null;
+  end if;
+
+  insert into public.profiles (id, email, full_name, reg_no)
+  values (new.id, lower(new.email), v_full_name, v_reg_no)
   on conflict (id) do nothing;
   return new;
 end $$;
@@ -145,14 +191,21 @@ begin
     raise exception 'Identity fields cannot be changed.';
   end if;
 
-  if new.role is distinct from old.role and not public.is_admin() then
-    raise exception 'You cannot change your own role.';
-  end if;
+  -- auth.uid() is only set for updates that came through the Supabase API with a
+  -- user's JWT. A direct SQL editor / migration query has no session, so auth.uid()
+  -- is null here — and whoever has that kind of DB access already has full control,
+  -- so the checks below (which exist to stop a participant's own token from
+  -- escalating itself) don't need to apply to them.
+  if auth.uid() is not null then
+    if new.role is distinct from old.role and not public.is_admin() then
+      raise exception 'You cannot change your own role.';
+    end if;
 
-  -- team_id may only move through the RPCs below, which set this flag
-  if new.team_id is distinct from old.team_id
-     and coalesce(current_setting('app.team_change', true), '') <> 'on' then
-    raise exception 'Join with a code or ask your team lead — team membership cannot be set directly.';
+    -- team_id may only move through the RPCs below, which set this flag
+    if new.team_id is distinct from old.team_id
+       and coalesce(current_setting('app.team_change', true), '') <> 'on' then
+      raise exception 'Join with a code or ask your team lead — team membership cannot be set directly.';
+    end if;
   end if;
 
   return new;
@@ -332,11 +385,48 @@ begin
   end if;
 end $$;
 
+-- Reg-desk staff (admins) use this to let a last-minute walk-in sign in, when
+-- they're not already in the imported Excel. Idempotent: re-running it for the
+-- same email (e.g. to fill in a name found afterwards) updates rather than errors.
+create or replace function public.add_walkin_registration(
+  p_email text,
+  p_full_name text default null,
+  p_reg_no text default null
+)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_uid   uuid := auth.uid();
+  v_email text := lower(trim(p_email));
+begin
+  if v_uid is null then raise exception 'You are signed out.'; end if;
+  if not public.is_admin() then
+    raise exception 'Only organisers can add walk-in registrations.';
+  end if;
+  if v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' then
+    raise exception 'Enter a valid email address.';
+  end if;
+  if v_email not like '%@vitstudent.ac.in' then
+    raise exception 'Only @vitstudent.ac.in emails can be added.';
+  end if;
+
+  insert into public.registrations (email, full_name, reg_no, added_by)
+  values (
+    v_email,
+    nullif(trim(coalesce(p_full_name, '')), ''),
+    nullif(upper(trim(coalesce(p_reg_no, ''))), ''),
+    v_uid
+  )
+  on conflict (lower(email)) do update
+    set full_name = coalesce(excluded.full_name, public.registrations.full_name),
+        reg_no    = coalesce(excluded.reg_no, public.registrations.reg_no);
+end $$;
+
 -- --------------------------------------------------------- row security ---
 
-alter table public.profiles    enable row level security;
-alter table public.teams       enable row level security;
-alter table public.submissions enable row level security;
+alter table public.profiles      enable row level security;
+alter table public.teams         enable row level security;
+alter table public.submissions   enable row level security;
+alter table public.registrations enable row level security;
 
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles for select to authenticated
@@ -375,12 +465,20 @@ create policy submissions_update on public.submissions for update to authenticat
   using (team_id = public.my_team_id())
   with check (team_id = public.my_team_id());
 
+-- registrations are only ever written through add_walkin_registration (or the
+-- pre-event CSV import, which runs as the table owner) — no insert/update/delete
+-- policy here, same reasoning as teams above.
+drop policy if exists registrations_select on public.registrations;
+create policy registrations_select on public.registrations for select to authenticated
+  using (public.is_admin());
+
 -- -------------------------------------------------------------- grants ----
 
 grant usage on schema public to authenticated;
 grant select, insert, update on public.profiles to authenticated;
 grant select          on public.teams       to authenticated;
 grant select, insert, update on public.submissions to authenticated;
+grant select on public.registrations to authenticated;
 
 revoke all on function
   public.create_team(text, text),
@@ -389,7 +487,8 @@ revoke all on function
   public.remove_member(uuid),
   public.transfer_lead(uuid),
   public.update_team(text, text),
-  public.leave_team()
+  public.leave_team(),
+  public.add_walkin_registration(text, text, text)
 from public, anon;
 
 grant execute on function
@@ -399,7 +498,8 @@ grant execute on function
   public.remove_member(uuid),
   public.transfer_lead(uuid),
   public.update_team(text, text),
-  public.leave_team()
+  public.leave_team(),
+  public.add_walkin_registration(text, text, text)
 to authenticated;
 
 -- ------------------------------------------------------------- storage ----

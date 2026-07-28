@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getProfile } from "@/lib/data";
+import { getProfile, getSubmissionDownloadUrl } from "@/lib/data";
 import { AppHeader } from "@/components/app-header";
 import { Chip, Panel } from "@/components/ui";
 import { TRACKS } from "@/lib/constants";
+import { WalkinForm } from "./walkin-form";
+import { DataTabs, type ParticipantRow, type RegistrationRow, type SubmissionRow, type TeamRow } from "./data-tabs";
 
 export const metadata = { title: "Organisers · FRONTIER 2026" };
 export const dynamic = "force-dynamic";
 
-type Row = {
+type ProfileRow = {
   id: string;
   full_name: string | null;
   reg_no: string | null;
@@ -17,7 +19,27 @@ type Row = {
   phone: string | null;
   year: number | null;
   team_id: string | null;
-  teams: { id: string; name: string; track: string; leader_id: string } | null;
+  teams: { id: string; name: string; track: string; join_code: string; leader_id: string } | null;
+};
+
+type SubmissionQueryRow = {
+  id: string;
+  team_id: string;
+  file_name: string;
+  file_path: string;
+  version: number;
+  submitted_by: string | null;
+  submitted_at: string;
+  teams: { name: string; track: string } | null;
+};
+
+type RegistrationQueryRow = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  reg_no: string | null;
+  added_by: string | null;
+  created_at: string;
 };
 
 export default async function AdminPage() {
@@ -49,12 +71,28 @@ export default async function AdminPage() {
   }
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, full_name, reg_no, email, phone, year, team_id, teams(id, name, track, leader_id)")
-    .order("created_at", { ascending: true });
+  const [{ data: profilesData }, { data: submissionsData }, { data: registrationsData }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select(
+          "id, full_name, reg_no, email, phone, year, team_id, teams(id, name, track, join_code, leader_id)"
+        )
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("submissions")
+        .select("id, team_id, file_name, file_path, version, submitted_by, submitted_at, teams(name, track)")
+        .order("submitted_at", { ascending: true }),
+      supabase
+        .from("registrations")
+        .select("id, email, full_name, reg_no, added_by, created_at")
+        .order("created_at", { ascending: true }),
+    ]);
 
-  const rows = (data ?? []) as unknown as Row[];
+  const rows = (profilesData ?? []) as unknown as ProfileRow[];
+  const submissionRows = (submissionsData ?? []) as unknown as SubmissionQueryRow[];
+  const registrationRows = (registrationsData ?? []) as unknown as RegistrationQueryRow[];
+
   const registered = rows.length;
   const completed = rows.filter((r) => r.full_name && r.reg_no).length;
   const teamed = rows.filter((r) => r.team_id).length;
@@ -62,9 +100,74 @@ export default async function AdminPage() {
 
   const perTrack = TRACKS.map((t) => ({
     track: t,
-    teams: new Set(
-      rows.filter((r) => r.teams?.track === t).map((r) => r.team_id)
-    ).size,
+    teams: new Set(rows.filter((r) => r.teams?.track === t).map((r) => r.team_id)).size,
+  }));
+
+  // ---- participants tab ----
+  const participants: ParticipantRow[] = rows.map((r) => ({
+    id: r.id,
+    full_name: r.full_name,
+    reg_no: r.reg_no,
+    email: r.email,
+    phone: r.phone,
+    year: r.year,
+    teamName: r.teams?.name ?? null,
+    track: r.teams?.track ?? null,
+    isLead: r.teams?.leader_id === r.id,
+  }));
+
+  // ---- teams tab ----
+  const submissionByTeam = new Map(
+    submissionRows.map((s) => [s.team_id, { version: s.version, submitted_at: s.submitted_at }])
+  );
+  const teamMap = new Map<string, TeamRow>();
+  for (const r of rows) {
+    if (!r.teams) continue;
+    const t = r.teams;
+    if (!teamMap.has(t.id)) {
+      teamMap.set(t.id, {
+        id: t.id,
+        name: t.name,
+        track: t.track,
+        join_code: t.join_code,
+        memberCount: 0,
+        leaderName: null,
+        leaderEmail: null,
+        submission: submissionByTeam.get(t.id) ?? null,
+      });
+    }
+    const agg = teamMap.get(t.id)!;
+    agg.memberCount += 1;
+    if (r.id === t.leader_id) {
+      agg.leaderName = r.full_name;
+      agg.leaderEmail = r.email;
+    }
+  }
+  const teams = [...teamMap.values()];
+
+  // ---- submissions tab ----
+  const profileById = new Map(rows.map((r) => [r.id, r]));
+  const submissions: SubmissionRow[] = await Promise.all(
+    submissionRows.map(async (s) => ({
+      id: s.id,
+      teamName: s.teams?.name ?? null,
+      track: s.teams?.track ?? null,
+      file_name: s.file_name,
+      version: s.version,
+      submitted_at: s.submitted_at,
+      submitterEmail: s.submitted_by ? profileById.get(s.submitted_by)?.email ?? null : null,
+      downloadUrl: await getSubmissionDownloadUrl(s.file_path),
+    }))
+  );
+
+  // ---- registrations tab ----
+  const registrations: RegistrationRow[] = registrationRows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    full_name: r.full_name,
+    reg_no: r.reg_no,
+    addedByLabel: r.added_by ? profileById.get(r.added_by)?.email ?? "reg desk" : "Excel import",
+    created_at: r.created_at,
   }));
 
   return (
@@ -79,17 +182,12 @@ export default async function AdminPage() {
               REGISTRATIONS
             </h1>
           </div>
-          <a
-            href="/admin/export"
-            className="inline-flex items-center border-[3px] border-ink bg-purple px-6 py-3 font-sans text-sm font-bold uppercase tracking-wide text-paper shadow-brut-sm transition-all duration-100 hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-none"
-          >
-            Download CSV
-          </a>
         </div>
 
         {/* stats */}
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
           {[
+            { label: "On allowlist", value: registrationRows.length },
             { label: "Accounts", value: registered },
             { label: "Details filled", value: completed },
             { label: "On a team", value: teamed },
@@ -120,66 +218,25 @@ export default async function AdminPage() {
           </div>
         </Panel>
 
-        {/* table */}
-        <Panel className="mt-6 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse text-left">
-              <thead>
-                <tr className="border-b-[3px] border-ink bg-ink text-paper">
-                  {["Name", "Reg no", "Email", "Phone", "Year", "Team", "Track", "Role"].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.14em]"
-                      >
-                        {h}
-                      </th>
-                    )
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-b-[3px] border-hairline last:border-0">
-                    <td className="px-4 py-3 font-sans text-sm font-bold">
-                      {r.full_name ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs uppercase">
-                      {r.reg_no ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">{r.email}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{r.phone ?? "—"}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{r.year ?? "—"}</td>
-                    <td className="px-4 py-3 font-sans text-sm">
-                      {r.teams?.name ?? (
-                        <span className="font-mono text-xs uppercase text-orange">
-                          No team
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-sans text-sm">{r.teams?.track ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      {r.teams?.leader_id === r.id ? (
-                        <span className="border-[3px] border-ink bg-purple px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-paper">
-                          Lead
-                        </span>
-                      ) : (
-                        <span className="font-mono text-xs text-muted">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {rows.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center font-sans text-muted">
-                      No registrations yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        {/* walk-in registration */}
+        <Panel className="mt-6 p-6">
+          <p className="label-muted">Reg desk — add a walk-in</p>
+          <p className="mt-2 font-sans text-sm text-muted">
+            Not on the pre-registration list? Add their email here and they can sign in
+            right away.
+          </p>
+          <div className="mt-4">
+            <WalkinForm />
           </div>
         </Panel>
+
+        {/* unified data portal */}
+        <DataTabs
+          participants={participants}
+          teams={teams}
+          submissions={submissions}
+          registrations={registrations}
+        />
       </main>
     </div>
   );

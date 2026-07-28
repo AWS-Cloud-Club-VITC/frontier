@@ -217,6 +217,32 @@ export async function leaveTeam(): Promise<void> {
   redirect("/dashboard");
 }
 
+export async function addWalkinRegistration(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const email = str(formData.get("email")).toLowerCase();
+  const full_name = str(formData.get("full_name"));
+  const reg_no = str(formData.get("reg_no")).toUpperCase();
+
+  if (!email) return { error: "Enter their email address." };
+
+  const { error } = await supabase.rpc("add_walkin_registration", {
+    p_email: email,
+    p_full_name: full_name || null,
+    p_reg_no: reg_no || null,
+  });
+
+  if (error) {
+    console.error("[Action] addWalkinRegistration error:", error);
+    return { error: clean(error.message) };
+  }
+
+  revalidatePath("/admin");
+  return { ok: `${email} added — they can sign in now.` };
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

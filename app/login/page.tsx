@@ -42,8 +42,8 @@ export default function LoginPage() {
             <Chip tone="purple">Registration</Chip>
             <h1 className="mt-5 font-display text-4xl leading-none">SIGN IN</h1>
             <p className="mt-4 font-sans text-base text-muted">
-              New here? Signing in creates your account. No password to remember — we
-              email you a code.
+              New here? Signing in creates your account. No password to remember — use
+              your VIT Google account.
             </p>
           </div>
 

@@ -32,7 +32,3 @@ export const EVENT = {
   studentCoordinator: "Tarun Vaibhav V",
   studentCoordinatorPhone: "6369046779",
 };
-
-export function isAllowedEmail(email: string) {
-  return email.trim().toLowerCase().endsWith(ALLOWED_EMAIL_DOMAIN);
-}
