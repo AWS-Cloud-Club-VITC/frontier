@@ -99,3 +99,38 @@ export async function getTeam(teamId: string) {
     members: (members as Member[]) ?? [],
   };
 }
+
+export type Submission = {
+  id: string;
+  team_id: string;
+  file_path: string;
+  file_name: string;
+  version: number;
+  submitted_by: string | null;
+  submitted_at: string;
+};
+
+export async function getSubmission(teamId: string): Promise<Submission | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("submissions")
+    .select("*")
+    .eq("team_id", teamId)
+    .maybeSingle();
+
+  return (data as Submission) ?? null;
+}
+
+export async function getSubmissionDownloadUrl(filePath: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage
+    .from("submissions")
+    .createSignedUrl(filePath, 3600);
+
+  if (error || !data) {
+    console.error("[getSubmissionDownloadUrl] error:", error);
+    return null;
+  }
+  return data.signedUrl;
+}
+

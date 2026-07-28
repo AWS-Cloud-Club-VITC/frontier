@@ -3,7 +3,7 @@ export const ALLOWED_EMAIL_DOMAIN = "@vitstudent.ac.in";
 export const MAX_TEAM_SIZE = 4;
 
 // Submissions stay locked until you flip this to true (and redeploy).
-export const SUBMISSIONS_OPEN = false;
+export const SUBMISSIONS_OPEN = true;
 
 export const TRACKS = [
   "LLM Fine-Tuning",

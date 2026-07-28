@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getProfile, getTeam, profileIsComplete } from "@/lib/data";
+import { getProfile, getSubmission, getSubmissionDownloadUrl, getTeam, profileIsComplete } from "@/lib/data";
 import { AppHeader } from "@/components/app-header";
 import { CopyCode } from "@/components/copy-code";
 import { ButtonLink, Chip, Panel } from "@/components/ui";
 import { EVENT, MAX_TEAM_SIZE, SUBMISSIONS_OPEN } from "@/lib/constants";
+import { SubmissionForm } from "./submission-form";
 
 export const metadata = { title: "Dashboard · FRONTIER 2026" };
 
@@ -16,6 +17,9 @@ export default async function DashboardPage() {
   const { team, members } = profile.team_id
     ? await getTeam(profile.team_id)
     : { team: null, members: [] };
+
+  const submission = team ? await getSubmission(team.id) : null;
+  const downloadUrl = submission ? await getSubmissionDownloadUrl(submission.file_path) : null;
 
   const isLead = team?.leader_id === profile.id;
 
@@ -126,27 +130,12 @@ export default async function DashboardPage() {
           {/* ---------- side column ---------- */}
           <div className="space-y-6">
             {/* submission */}
-            <Panel tone="ink" className="p-7">
-              <div className="flex items-center justify-between gap-3">
-                <p className="label !text-purple-dim">Submission</p>
-                <Chip tone={SUBMISSIONS_OPEN ? "purple" : "orange"}>
-                  {SUBMISSIONS_OPEN ? "Open" : "Locked"}
-                </Chip>
-              </div>
-              <h2 className="mt-4 font-display text-2xl leading-tight">
-                {SUBMISSIONS_OPEN ? "UPLOAD YOUR DECK" : "OPENS ON DAY 1"}
-              </h2>
-              <p className="mt-3 font-sans text-sm text-grey">
-                {SUBMISSIONS_OPEN
-                  ? "Upload your filled-in slide template. You can replace it any number of times before the deadline."
-                  : "Slide uploads open when the build starts. Use the template — decks in other formats will not be accepted."}
-              </p>
-              <div className="mt-6 border-[3px] border-dashed border-grey/50 p-4">
-                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-grey">
-                  {team ? "Ready when you are" : "Join a team first"}
-                </p>
-              </div>
-            </Panel>
+            <SubmissionForm
+              submissionsOpen={SUBMISSIONS_OPEN}
+              hasTeam={Boolean(team)}
+              submission={submission}
+              downloadUrl={downloadUrl}
+            />
 
             {/* event flow placeholder */}
             <Panel className="p-7">

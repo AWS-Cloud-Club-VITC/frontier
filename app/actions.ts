@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { TRACKS } from "@/lib/constants";
+import { SUBMISSIONS_OPEN, TRACKS } from "@/lib/constants";
+import { getProfile } from "@/lib/data";
 
 export type ActionState = { error?: string; ok?: string };
 
@@ -221,3 +222,90 @@ export async function signOut() {
   await supabase.auth.signOut();
   redirect("/");
 }
+
+export async function uploadSubmission(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You are signed out. Sign in again." };
+
+  if (!SUBMISSIONS_OPEN) {
+    return { error: "Submissions are currently locked." };
+  }
+
+  const profile = await getProfile();
+  if (!profile?.team_id) {
+    return { error: "You must be in a team to submit." };
+  }
+
+  const file = formData.get("file");
+  if (!file || !(file instanceof File) || file.size === 0) {
+    return { error: "Please select a deck file (.pdf or .pptx) to upload." };
+  }
+
+  // 25 MB size limit (26,214,400 bytes)
+  if (file.size > 26214400) {
+    return { error: "File exceeds maximum allowed size of 25 MB." };
+  }
+
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  if (!ext || !["pdf", "pptx", "ppt"].includes(ext)) {
+    return { error: "Only .pdf and .pptx files are allowed." };
+  }
+
+  const teamId = profile.team_id;
+  const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+  const storagePath = `${teamId}/${Date.now()}_${safeName}`;
+
+  // Get current submission version if any
+  const { data: existing } = await supabase
+    .from("submissions")
+    .select("version")
+    .eq("team_id", teamId)
+    .maybeSingle();
+
+  const nextVersion = existing ? existing.version + 1 : 1;
+
+  const fileBuffer = await file.arrayBuffer();
+
+  const { error: uploadError } = await supabase.storage
+    .from("submissions")
+    .upload(storagePath, fileBuffer, {
+      contentType:
+        file.type ||
+        (ext === "pdf"
+          ? "application/pdf"
+          : "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+      upsert: true,
+    });
+
+  if (uploadError) {
+    console.error("[Action] uploadSubmission storage error:", uploadError);
+    return { error: clean(uploadError.message) };
+  }
+
+  const { error: dbError } = await supabase.from("submissions").upsert(
+    {
+      team_id: teamId,
+      file_path: storagePath,
+      file_name: file.name,
+      version: nextVersion,
+      submitted_by: user.id,
+      submitted_at: new Date().toISOString(),
+    },
+    { onConflict: "team_id" }
+  );
+
+  if (dbError) {
+    console.error("[Action] uploadSubmission DB error:", dbError);
+    return { error: clean(dbError.message) };
+  }
+
+  revalidatePath("/dashboard");
+  return { ok: `Deck v${nextVersion} uploaded successfully!` };
+}
+
