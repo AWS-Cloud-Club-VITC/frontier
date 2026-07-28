@@ -6,6 +6,39 @@ from code changes.
 
 ---
 
+## 2026-07-28 — Bug fix: server actions rejected deck uploads over 1MB
+
+### What changed and why
+
+Uploading a submission deck failed with "Body exceeded 1 MB limit" even though
+`uploadSubmission` (`app/actions.ts`) allows up to 25MB. Next.js server actions cap
+the request body at 1MB by default, separate from and stricter than the app's own
+size check — the framework limit rejected the request before the app's validation
+ever ran.
+
+**Fix**: `next.config.mjs` — added `experimental.serverActions.bodySizeLimit: "25mb"`
+to match the app's existing cap.
+
+**Action needed**: requires a full dev-server restart (or redeploy in production) —
+Next.js only reads this config at startup, a hot reload won't pick it up.
+
+---
+
+## 2026-07-28 — Admin: group participants table by team
+
+### What changed and why
+
+The Participants tab listed everyone in registration order, so teammates were
+scattered wherever they happened to sign up relative to other teams — no way to
+eyeball a roster at a glance.
+
+**Fix**: `app/admin/data-tabs.tsx` — added a `sortByTeam` helper (team name
+alphabetically, "no team" last, lead first within a team) and alternating
+row-background shading that changes only when the team changes, so consecutive
+teammates are visually grouped. UI-only — the CSV export ordering is unchanged.
+
+---
+
 ## 2026-07-28 — Admin data portal: tabs + per-dataset CSV export
 
 ### What changed and why

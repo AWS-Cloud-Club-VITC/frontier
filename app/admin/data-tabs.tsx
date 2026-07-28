@@ -56,6 +56,17 @@ const TAB_LABEL: Record<Tab, string> = {
   registrations: "Registrations",
 };
 
+/** Groups teammates together: by team name (no-team last), lead first within a team. */
+function sortByTeam(participants: ParticipantRow[]) {
+  return [...participants].sort((a, b) => {
+    const ta = a.teamName ?? "￿";
+    const tb = b.teamName ?? "￿";
+    if (ta !== tb) return ta.localeCompare(tb);
+    if (a.isLead !== b.isLead) return a.isLead ? -1 : 1;
+    return (a.full_name ?? "").localeCompare(b.full_name ?? "");
+  });
+}
+
 export function DataTabs({
   participants,
   teams,
@@ -116,28 +127,43 @@ export function DataTabs({
               </tr>
             </thead>
             <tbody>
-              {participants.map((r) => (
-                <tr key={r.id} className="border-b-[3px] border-hairline last:border-0">
-                  <td className="px-4 py-3 font-sans text-sm font-bold">{r.full_name ?? "—"}</td>
-                  <td className="px-4 py-3 font-mono text-xs uppercase">{r.reg_no ?? "—"}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{r.email}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{r.phone ?? "—"}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{r.year ?? "—"}</td>
-                  <td className="px-4 py-3 font-sans text-sm">
-                    {r.teamName ?? <span className="font-mono text-xs uppercase text-orange">No team</span>}
-                  </td>
-                  <td className="px-4 py-3 font-sans text-sm">{r.track ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    {r.isLead ? (
-                      <span className="border-[3px] border-ink bg-purple px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-paper">
-                        Lead
-                      </span>
-                    ) : (
-                      <span className="font-mono text-xs text-muted">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                let lastTeam: string | null | undefined;
+                let shade = false;
+                return sortByTeam(participants).map((r) => {
+                  if (r.teamName !== lastTeam) {
+                    shade = !shade;
+                    lastTeam = r.teamName;
+                  }
+                  return (
+                    <tr
+                      key={r.id}
+                      className={`border-b-[3px] border-hairline last:border-0 ${
+                        shade ? "bg-purple-wash" : "bg-paper"
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-sans text-sm font-bold">{r.full_name ?? "—"}</td>
+                      <td className="px-4 py-3 font-mono text-xs uppercase">{r.reg_no ?? "—"}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{r.email}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{r.phone ?? "—"}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{r.year ?? "—"}</td>
+                      <td className="px-4 py-3 font-sans text-sm">
+                        {r.teamName ?? <span className="font-mono text-xs uppercase text-orange">No team</span>}
+                      </td>
+                      <td className="px-4 py-3 font-sans text-sm">{r.track ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        {r.isLead ? (
+                          <span className="border-[3px] border-ink bg-purple px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-paper">
+                            Lead
+                          </span>
+                        ) : (
+                          <span className="font-mono text-xs text-muted">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                });
+              })()}
               {participants.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center font-sans text-muted">

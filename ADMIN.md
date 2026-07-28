@@ -65,7 +65,7 @@ a raw table write.
 
 | Tab | What it shows | CSV columns |
 |---|---|---|
-| **Participants** | Every signed-up person, their team, and whether they're the lead | Name, Reg no, Email, Phone, Year, Team, Track, Join Code, Is Lead, Registered At |
+| **Participants** | Every signed-up person, grouped by team (banded rows, lead shown first per team) | Name, Reg no, Email, Phone, Year, Team, Track, Join Code, Is Lead, Registered At |
 | **Teams** | One row per team — member count, lead, submission status at a glance | Team, Track, Join Code, Members, Lead Name, Lead Email, Submission |
 | **Submissions** | Every uploaded deck, with a direct download link per row | Team, Track, File Name, Version, Submitted By, Submitted At |
 | **Registrations** | The full allowlist — who's on it and how they got there | Email, Full Name, Registration No, Added By, Added At |
