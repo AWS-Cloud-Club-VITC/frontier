@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-paper text-ink antialiased;
+  }
+  ::selection {
+    @apply bg-purple text-paper;
+  }
+}
+
+@layer components {
+  /* the recurring neo-brutalist surface: hard border, hard shadow, no radius */
+  .brut {
+    @apply border-[3px] border-ink bg-paper shadow-brut;
+  }
+  .brut-sm {
+    @apply border-[3px] border-ink bg-paper shadow-brut-sm;
+  }
+  .label {
+    @apply font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-purple;
+  }
+  .label-muted {
+    @apply font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-muted;
+  }
+  .field {
+    @apply w-full border-[3px] border-ink bg-paper px-4 py-3 font-sans text-base text-ink
+           placeholder:text-grey focus:outline-none focus:shadow-brut-sm focus:-translate-x-[2px]
+           focus:-translate-y-[2px] transition-all duration-100 disabled:bg-hairline/40
+           disabled:text-muted;
+  }
+}
