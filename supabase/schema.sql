@@ -370,6 +370,9 @@ end $$;
 -- Returns the departing solo lead's submission file_path (or null), so the
 -- caller can clean up storage — same reasoning as admin_delete_team below,
 -- since the team-delete branch here cascades the submissions row away too.
+-- return type changed from void to text — CREATE OR REPLACE can't do that,
+-- so the old signature has to be dropped first for this script to be re-runnable.
+drop function if exists public.leave_team();
 create or replace function public.leave_team()
 returns text language plpgsql security definer set search_path = public as $$
 declare
@@ -468,6 +471,8 @@ end $$;
 -- sole member takes the team down with them, same as leave_team().
 -- Returns the removed solo lead's submission file_path (or null), so the
 -- caller can clean up storage — same reasoning as admin_delete_team below.
+-- return type changed from void to text — same reasoning as leave_team() above.
+drop function if exists public.admin_remove_from_team(uuid);
 create or replace function public.admin_remove_from_team(p_id uuid)
 returns text language plpgsql security definer set search_path = public as $$
 declare
