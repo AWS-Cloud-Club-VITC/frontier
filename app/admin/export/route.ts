@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { toCsv } from "@/lib/csv";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type ProfileRow = {
   id: string;
   full_name: string | null;
@@ -66,48 +69,41 @@ export async function GET(request: Request) {
   let rows: unknown[][];
 
   if (dataset === "teams") {
-    const { data } = await supabase
+    const { data: teamsData } = await supabase
+      .from("teams")
+      .select("id, name, track, join_code, leader_id");
+    const { data: profilesData } = await supabase
       .from("profiles")
-      .select("id, full_name, email, team_id, teams(id, name, track, join_code, leader_id)");
-    const profiles = (data ?? []) as unknown as ProfileRow[];
-    const { data: subs } = await supabase.from("submissions").select("team_id, version, submitted_at");
+      .select("id, full_name, email, team_id");
+    const { data: subsData } = await supabase
+      .from("submissions")
+      .select("team_id, version, submitted_at");
 
-    const teamMap = new Map<
-      string,
-      { name: string; track: string; join_code: string; memberCount: number; leaderName: string | null; leaderEmail: string | null }
-    >();
+    const teams = teamsData ?? [];
+    const profiles = profilesData ?? [];
+    const subs = subsData ?? [];
+
+    const leaderMap = new Map(profiles.map((p) => [p.id, p]));
+    const memberCounts = new Map<string, number>();
     for (const p of profiles) {
-      if (!p.teams) continue;
-      const t = p.teams;
-      if (!teamMap.has(t.id)) {
-        teamMap.set(t.id, {
-          name: t.name,
-          track: t.track,
-          join_code: t.join_code,
-          memberCount: 0,
-          leaderName: null,
-          leaderEmail: null,
-        });
-      }
-      const agg = teamMap.get(t.id)!;
-      agg.memberCount += 1;
-      if (p.id === t.leader_id) {
-        agg.leaderName = p.full_name;
-        agg.leaderEmail = p.email;
+      if (p.team_id) {
+        memberCounts.set(p.team_id, (memberCounts.get(p.team_id) ?? 0) + 1);
       }
     }
-    const subByTeam = new Map((subs ?? []).map((s) => [s.team_id, s]));
+    const subByTeam = new Map(subs.map((s) => [s.team_id, s]));
 
     header = ["Team", "Track", "Join Code", "Members", "Lead Name", "Lead Email", "Submission"];
-    rows = [...teamMap.entries()].map(([teamId, t]) => {
-      const sub = subByTeam.get(teamId);
+    rows = teams.map((t) => {
+      const leader = leaderMap.get(t.leader_id);
+      const memberCount = memberCounts.get(t.id) ?? 0;
+      const sub = subByTeam.get(t.id);
       return [
         t.name,
         t.track,
         t.join_code,
-        t.memberCount,
-        t.leaderName,
-        t.leaderEmail,
+        memberCount,
+        leader?.full_name ?? "",
+        leader?.email ?? "",
         sub ? `v${sub.version} — ${sub.submitted_at}` : "Not submitted",
       ];
     });
@@ -128,8 +124,8 @@ export async function GET(request: Request) {
     rows = submissions.map((s) => {
       const submitter = s.submitted_by ? submitterMap.get(s.submitted_by) : null;
       return [
-        s.teams?.name,
-        s.teams?.track,
+        s.teams?.name ?? "",
+        s.teams?.track ?? "",
         s.file_name,
         s.version,
         submitter?.email ?? "",
@@ -152,8 +148,8 @@ export async function GET(request: Request) {
     header = ["Email", "Full Name", "Registration No", "Added By", "Added At"];
     rows = registrations.map((r) => [
       r.email,
-      r.full_name,
-      r.reg_no,
+      r.full_name ?? "",
+      r.reg_no ?? "",
       r.added_by ? adderMap.get(r.added_by)?.email ?? "reg desk" : "Excel import",
       r.created_at,
     ]);
@@ -179,14 +175,14 @@ export async function GET(request: Request) {
       "Registered At",
     ];
     rows = profiles.map((r) => [
-      r.full_name,
-      r.reg_no,
+      r.full_name ?? "",
+      r.reg_no ?? "",
       r.email,
-      r.phone,
-      r.year,
-      r.teams?.name,
-      r.teams?.track,
-      r.teams?.join_code,
+      r.phone ?? "",
+      r.year ?? "",
+      r.teams?.name ?? "",
+      r.teams?.track ?? "",
+      r.teams?.join_code ?? "",
       r.teams?.leader_id === r.id ? "yes" : "no",
       r.created_at,
     ]);

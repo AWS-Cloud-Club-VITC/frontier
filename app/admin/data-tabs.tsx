@@ -7,6 +7,8 @@ import { TeamRow } from "./team-row";
 import { RegistrationRow } from "./registration-row";
 import { SubmissionRow } from "./submission-row";
 
+import { withBasePath } from "@/lib/base-path";
+
 export type ParticipantRow = {
   id: string;
   full_name: string | null;
@@ -113,7 +115,8 @@ export function DataTabs({
           ))}
         </div>
         <a
-          href={`/admin/export?dataset=${tab}`}
+          href={withBasePath(`/admin/export?dataset=${tab}`)}
+          download
           className="border-[3px] border-paper bg-transparent px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-paper transition-colors hover:bg-paper hover:text-ink"
         >
           Download CSV
