@@ -32,3 +32,39 @@ export const EVENT = {
   studentCoordinator: "Tarun Vaibhav V",
   studentCoordinatorPhone: "6369046779",
 };
+
+export type ScheduleItem = { time: string; title: string; detail?: string };
+
+export const EVENT_SCHEDULE: { day: string; items: ScheduleItem[] }[] = [
+  {
+    day: EVENT.day1,
+    items: [
+      { time: "8:00 – 9:00 AM", title: "Registration" },
+      { time: "10:00 AM", title: "Intro session" },
+      { time: "11:30 AM – 1:00 PM", title: "Hacking begins" },
+      { time: "1:00 – 2:00 PM", title: "Lunch" },
+      { time: "2:00 – 5:00 PM", title: "Hacking continues" },
+      {
+        time: "After 5:00 PM",
+        title: "Head home / hostel",
+        detail: "Keep building — a Google Form link is shared for your GitHub repo and demo video.",
+      },
+      {
+        time: "10:00 PM",
+        title: "Submission deadline",
+        detail: "Shortlisted teams are notified after review.",
+      },
+    ],
+  },
+  {
+    day: EVENT.day2,
+    items: [
+      { time: "8:00 AM", title: "Reporting" },
+      { time: "8:00 – 11:00 AM", title: "Hacking continues" },
+      { time: "11:00 AM", title: "Final evaluation starts" },
+      { time: "1:00 – 2:00 PM", title: "Lunch" },
+      { time: "2:00 – 4:00 PM", title: "Evaluation" },
+      { time: "4:00 PM", title: "Closing ceremony" },
+    ],
+  },
+];

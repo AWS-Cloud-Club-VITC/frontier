@@ -2,7 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ButtonLink, Chip, Panel } from "@/components/ui";
 import { ChipMark, LogoLockup, Wordmark } from "@/components/logo";
-import { EVENT, TRACKS } from "@/lib/constants";
+import { ScheduleList } from "@/components/schedule-list";
+import { EVENT, EVENT_SCHEDULE, TRACKS } from "@/lib/constants";
 
 export default async function Home() {
   // The landing page must render even if Supabase is unreachable — it is the
@@ -155,42 +156,19 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ---------- event flow (placeholder) ---------- */}
+      {/* ---------- event flow ---------- */}
       <section className="border-b-[3px] border-ink">
         <div className="mx-auto max-w-6xl px-5 py-16">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <h2 className="font-display text-4xl sm:text-5xl">EVENT FLOW</h2>
-            <Chip tone="orange">Coming soon</Chip>
-          </div>
+          <h2 className="font-display text-4xl sm:text-5xl">EVENT FLOW</h2>
 
           <div className="mt-10 grid gap-5 md:grid-cols-2">
-            <Panel tone="ink" className="p-7">
-              <Chip tone="purple">Day 1</Chip>
-              <div className="mt-4 font-display text-2xl">{EVENT.day1}</div>
-              <p className="mt-2 font-mono text-sm text-grey">{EVENT.day1Detail}</p>
-              <div className="mt-6 border-[3px] border-dashed border-grey/50 p-5">
-                <p className="font-mono text-xs uppercase tracking-[0.14em] text-grey">
-                  Hour-by-hour schedule
-                </p>
-                <p className="mt-2 font-sans text-sm text-grey">
-                  Published closer to the event.
-                </p>
-              </div>
-            </Panel>
-
-            <Panel tone="ink" className="p-7">
-              <Chip tone="purple">Day 2</Chip>
-              <div className="mt-4 font-display text-2xl">{EVENT.day2}</div>
-              <p className="mt-2 font-mono text-sm text-grey">{EVENT.day2Detail}</p>
-              <div className="mt-6 border-[3px] border-dashed border-grey/50 p-5">
-                <p className="font-mono text-xs uppercase tracking-[0.14em] text-grey">
-                  Demo slots &amp; judging criteria
-                </p>
-                <p className="mt-2 font-sans text-sm text-grey">
-                  Published closer to the event.
-                </p>
-              </div>
-            </Panel>
+            {EVENT_SCHEDULE.map((day, i) => (
+              <Panel key={day.day} tone="ink" className="p-7">
+                <Chip tone="purple">Day {i + 1}</Chip>
+                <div className="mt-4 font-display text-2xl">{day.day}</div>
+                <ScheduleList items={day.items} dark />
+              </Panel>
+            ))}
           </div>
         </div>
       </section>

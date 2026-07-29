@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { uploadSubmission, type ActionState } from "@/app/actions";
 import { Button, Chip, Notice, Panel } from "@/components/ui";
+import { FilePreviewToggle } from "@/components/file-preview";
 import type { Submission } from "@/lib/data";
 
 const initialState: ActionState = {};
@@ -120,6 +121,8 @@ export function SubmissionForm({
               </a>
             )}
 
+            <FilePreviewToggle fileName={submission.file_name} url={downloadUrl} />
+
             {submissionsOpen && isLead && (
               <button
                 type="button"
@@ -141,6 +144,13 @@ export function SubmissionForm({
       {/* Upload Form */}
       {submissionsOpen && hasTeam && isLead && (!submission || isReplacing) && (
         <form action={formAction} className="mt-6 space-y-4">
+          {submission && (
+            <Notice tone="info">
+              Uploading a new file replaces v{submission.version} — the old file is deleted
+              from storage and can&apos;t be viewed or recovered afterwards.
+            </Notice>
+          )}
+
           <div className="border-[3px] border-dashed border-grey/50 p-4 transition-colors hover:border-purple-dim">
             <label className="block cursor-pointer">
               <span className="block font-mono text-[11px] uppercase tracking-[0.14em] text-grey">

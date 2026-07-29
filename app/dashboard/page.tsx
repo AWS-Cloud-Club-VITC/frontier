@@ -4,7 +4,8 @@ import { getProfile, getSubmission, getSubmissionDownloadUrl, getTeam, profileIs
 import { AppHeader } from "@/components/app-header";
 import { CopyCode } from "@/components/copy-code";
 import { ButtonLink, Chip, Panel } from "@/components/ui";
-import { EVENT, MAX_TEAM_SIZE, SUBMISSIONS_OPEN } from "@/lib/constants";
+import { ScheduleList } from "@/components/schedule-list";
+import { EVENT, EVENT_SCHEDULE, MAX_TEAM_SIZE, SUBMISSIONS_OPEN } from "@/lib/constants";
 import { SubmissionForm } from "./submission-form";
 
 export const metadata = { title: "Dashboard · FRONTIER 2026" };
@@ -138,31 +139,20 @@ export default async function DashboardPage() {
               downloadUrl={downloadUrl}
             />
 
-            {/* event flow placeholder */}
+            {/* event flow */}
             <Panel className="p-7">
-              <div className="flex items-center justify-between gap-3">
-                <p className="label">Event flow</p>
-                <Chip tone="orange">Coming soon</Chip>
-              </div>
-              <div className="mt-5 space-y-4">
-                <div>
-                  <p className="font-mono text-xs uppercase tracking-[0.14em] text-muted">
-                    {EVENT.day1}
-                  </p>
-                  <p className="font-sans text-sm">{EVENT.day1Detail}</p>
+              <p className="label">Event flow</p>
+              {EVENT_SCHEDULE.map((day, i) => (
+                <div key={day.day} className={i > 0 ? "mt-6" : ""}>
+                  <div className="flex items-center justify-between gap-3">
+                    <Chip tone="outline">Day {i + 1}</Chip>
+                    <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
+                      {day.day}
+                    </p>
+                  </div>
+                  <ScheduleList items={day.items} />
                 </div>
-                <div>
-                  <p className="font-mono text-xs uppercase tracking-[0.14em] text-muted">
-                    {EVENT.day2}
-                  </p>
-                  <p className="font-sans text-sm">{EVENT.day2Detail}</p>
-                </div>
-              </div>
-              <div className="mt-6 border-[3px] border-dashed border-ink p-4">
-                <p className="font-sans text-sm text-muted">
-                  The full hour-by-hour schedule lands here before Day 1.
-                </p>
-              </div>
+              ))}
             </Panel>
 
             {/* venue */}
