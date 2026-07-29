@@ -10,11 +10,13 @@ const initialState: ActionState = {};
 export function SubmissionForm({
   submissionsOpen,
   hasTeam,
+  isLead,
   submission,
   downloadUrl,
 }: {
   submissionsOpen: boolean;
   hasTeam: boolean;
+  isLead: boolean;
   submission: Submission | null;
   downloadUrl: string | null;
 }) {
@@ -118,7 +120,7 @@ export function SubmissionForm({
               </a>
             )}
 
-            {submissionsOpen && (
+            {submissionsOpen && isLead && (
               <button
                 type="button"
                 onClick={() => setIsReplacing(true)}
@@ -128,11 +130,16 @@ export function SubmissionForm({
               </button>
             )}
           </div>
+          {submissionsOpen && !isLead && (
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-grey">
+              Only your team lead can replace the deck.
+            </p>
+          )}
         </div>
       )}
 
       {/* Upload Form */}
-      {submissionsOpen && hasTeam && (!submission || isReplacing) && (
+      {submissionsOpen && hasTeam && isLead && (!submission || isReplacing) && (
         <form action={formAction} className="mt-6 space-y-4">
           <div className="border-[3px] border-dashed border-grey/50 p-4 transition-colors hover:border-purple-dim">
             <label className="block cursor-pointer">
@@ -191,6 +198,15 @@ export function SubmissionForm({
             )}
           </div>
         </form>
+      )}
+
+      {/* Not the lead, nothing submitted yet */}
+      {submissionsOpen && hasTeam && !isLead && !submission && (
+        <div className="mt-6 border-[3px] border-dashed border-grey/50 p-4">
+          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-grey">
+            Waiting for your team lead to submit the deck
+          </p>
+        </div>
       )}
 
       {/* Locked / No Team info */}

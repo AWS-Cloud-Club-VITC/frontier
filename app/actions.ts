@@ -478,6 +478,16 @@ export async function uploadSubmission(
     return { error: "You must be in a team to submit." };
   }
 
+  const { data: team } = await supabase
+    .from("teams")
+    .select("leader_id")
+    .eq("id", profile.team_id)
+    .maybeSingle();
+
+  if (team?.leader_id !== profile.id) {
+    return { error: "Only your team lead can submit the deck." };
+  }
+
   const file = formData.get("file");
   if (!file || !(file instanceof File) || file.size === 0) {
     return { error: "Please select a deck file (.pdf or .pptx) to upload." };

@@ -72,6 +72,11 @@ returns boolean language sql stable security definer set search_path = public as
   select coalesce((select role = 'admin' from public.profiles where id = auth.uid()), false)
 $$;
 
+create or replace function public.is_my_team_lead(p_team_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.teams where id = p_team_id and leader_id = auth.uid())
+$$;
+
 create or replace function public.generate_join_code()
 returns text language plpgsql security definer set search_path = public as $$
 declare
@@ -634,14 +639,16 @@ drop policy if exists submissions_select on public.submissions;
 create policy submissions_select on public.submissions for select to authenticated
   using (team_id = public.my_team_id() or public.is_admin());
 
+-- Only the team lead may submit or replace the deck — everyone on the team
+-- can still see it via submissions_select above.
 drop policy if exists submissions_write on public.submissions;
 create policy submissions_write on public.submissions for insert to authenticated
-  with check (team_id = public.my_team_id());
+  with check (team_id = public.my_team_id() and public.is_my_team_lead(team_id));
 
 drop policy if exists submissions_update on public.submissions;
 create policy submissions_update on public.submissions for update to authenticated
-  using (team_id = public.my_team_id())
-  with check (team_id = public.my_team_id());
+  using (team_id = public.my_team_id() and public.is_my_team_lead(team_id))
+  with check (team_id = public.my_team_id() and public.is_my_team_lead(team_id));
 
 -- registrations are only ever written through add_walkin_registration (or the
 -- pre-event CSV import, which runs as the table owner) — no insert/update/delete
@@ -716,11 +723,14 @@ create policy submission_files_read on storage.objects for select to authenticat
     and ((storage.foldername(name))[1] = public.my_team_id()::text or public.is_admin())
   );
 
+-- Only the team lead may upload, replace, or clean up the old file on
+-- replace — submission_files_read above still lets any member download it.
 drop policy if exists submission_files_write on storage.objects;
 create policy submission_files_write on storage.objects for insert to authenticated
   with check (
     bucket_id = 'submissions'
     and (storage.foldername(name))[1] = public.my_team_id()::text
+    and public.is_my_team_lead(public.my_team_id())
   );
 
 drop policy if exists submission_files_update on storage.objects;
@@ -728,11 +738,15 @@ create policy submission_files_update on storage.objects for update to authentic
   using (
     bucket_id = 'submissions'
     and (storage.foldername(name))[1] = public.my_team_id()::text
+    and public.is_my_team_lead(public.my_team_id())
   );
 
 drop policy if exists submission_files_delete on storage.objects;
 create policy submission_files_delete on storage.objects for delete to authenticated
   using (
     bucket_id = 'submissions'
-    and ((storage.foldername(name))[1] = public.my_team_id()::text or public.is_admin())
+    and (
+      ((storage.foldername(name))[1] = public.my_team_id()::text and public.is_my_team_lead(public.my_team_id()))
+      or public.is_admin()
+    )
   );

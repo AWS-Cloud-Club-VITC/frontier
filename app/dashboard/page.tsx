@@ -133,6 +133,7 @@ export default async function DashboardPage() {
             <SubmissionForm
               submissionsOpen={SUBMISSIONS_OPEN}
               hasTeam={Boolean(team)}
+              isLead={isLead}
               submission={submission}
               downloadUrl={downloadUrl}
             />
