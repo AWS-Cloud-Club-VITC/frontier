@@ -131,7 +131,7 @@ export default async function Home() {
               {
                 n: "01",
                 t: "Register",
-                d: "Sign in with your VIT student email. We send a 6-digit code — type it in, and fill your name and registration number.",
+                d: "Sign in with your VIT student Google account (@vitstudent.ac.in), then fill in your name and registration number.",
               },
               {
                 n: "02",

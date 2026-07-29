@@ -6,6 +6,18 @@ from code changes.
 
 ---
 
+## 2026-07-29 — Correction: upload cap is 8MB, not 25MB
+
+The entry below (2026-07-28) describes bumping the cap to 25MB — that's since
+been lowered to 8MB everywhere (`next.config.mjs`, `uploadSubmission` in
+`app/actions.ts`, and the `submissions` storage bucket's `file_size_limit` in
+`schema.sql`), with the server-action body limit itself kept at 10MB, above
+the app's own 8MB check, so an oversized file still gets the friendly error
+instead of a framework-level rejection. Leaving the original entry below
+as-is for the history; treat 8MB as current.
+
+---
+
 ## 2026-07-28 — Bug fix: server actions rejected deck uploads over 1MB
 
 ### What changed and why

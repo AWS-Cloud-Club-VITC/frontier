@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getProfile, getSubmission, getSubmissionDownloadUrl, getTeam, profileIsComplete } from "@/lib/data";
+import { leaveTeam } from "@/app/actions";
 import { AppHeader } from "@/components/app-header";
 import { CopyCode } from "@/components/copy-code";
 import { ButtonLink, Chip, Panel } from "@/components/ui";
@@ -110,6 +111,17 @@ export default async function DashboardPage() {
                       <CopyCode code={team.join_code} />
                     </div>
                   </div>
+                )}
+
+                {!isLead && (
+                  <form action={leaveTeam} className="mt-8">
+                    <button
+                      type="submit"
+                      className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-muted underline underline-offset-4 hover:text-ink"
+                    >
+                      Leave this team
+                    </button>
+                  </form>
                 )}
               </Panel>
             ) : (

@@ -206,11 +206,18 @@ export async function updateTeam(
 
 export async function leaveTeam(): Promise<void> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("leave_team");
+  const { data: filePath, error } = await supabase.rpc("leave_team");
 
   if (error) {
     console.error("[Action] leaveTeam error:", error);
     redirect(`/team?error=${encodeURIComponent(clean(error.message))}`);
+  }
+
+  if (filePath) {
+    const { error: removeError } = await supabase.storage.from("submissions").remove([filePath]);
+    if (removeError) {
+      console.error("[Action] leaveTeam storage cleanup error:", removeError);
+    }
   }
 
   revalidatePath("/dashboard");
@@ -283,10 +290,17 @@ export async function adminRemoveFromTeam(
   const supabase = await createClient();
   const id = str(formData.get("id"));
 
-  const { error } = await supabase.rpc("admin_remove_from_team", { p_id: id });
+  const { data: filePath, error } = await supabase.rpc("admin_remove_from_team", { p_id: id });
   if (error) {
     console.error("[Action] adminRemoveFromTeam error:", error);
     return { error: clean(error.message) };
+  }
+
+  if (filePath) {
+    const { error: removeError } = await supabase.storage.from("submissions").remove([filePath]);
+    if (removeError) {
+      console.error("[Action] adminRemoveFromTeam storage cleanup error:", removeError);
+    }
   }
 
   revalidatePath("/admin");
@@ -499,7 +513,7 @@ export async function uploadSubmission(
   }
 
   const ext = file.name.split(".").pop()?.toLowerCase();
-  if (!ext || !["pdf", "pptx", "ppt"].includes(ext)) {
+  if (!ext || !["pdf", "pptx"].includes(ext)) {
     return { error: "Only .pdf and .pptx files are allowed." };
   }
 

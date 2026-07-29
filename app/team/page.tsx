@@ -115,7 +115,7 @@ export default async function TeamPage({
             <p className="mt-3 max-w-lg font-sans text-sm text-muted">
               {members.length > 1
                 ? "You're the lead. Hand the lead to someone else before you leave."
-                : "You're the only member, so the team will be deleted."}
+                : "You're the only member, so the team — and any deck you've submitted — will be deleted."}
             </p>
             <form action={leaveTeam} className="mt-6">
               <button

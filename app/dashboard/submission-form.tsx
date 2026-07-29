@@ -173,7 +173,7 @@ export function SubmissionForm({
               <input
                 type="file"
                 name="file"
-                accept=".pdf,.pptx,.ppt,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                 onChange={handleFileChange}
                 className="hidden"
                 required

@@ -367,12 +367,16 @@ begin
   update public.teams set name = trim(p_name), track = p_track where id = v_team_id;
 end $$;
 
+-- Returns the departing solo lead's submission file_path (or null), so the
+-- caller can clean up storage — same reasoning as admin_delete_team below,
+-- since the team-delete branch here cascades the submissions row away too.
 create or replace function public.leave_team()
-returns void language plpgsql security definer set search_path = public as $$
+returns text language plpgsql security definer set search_path = public as $$
 declare
   v_uid     uuid := auth.uid();
   v_team_id uuid;
   v_count   int;
+  v_path    text;
 begin
   select team_id into v_team_id from public.profiles where id = v_uid;
   if v_team_id is null then raise exception 'You are not on a team.'; end if;
@@ -386,8 +390,11 @@ begin
     if v_count > 1 then
       raise exception 'Hand the team lead to someone else before you leave.';
     end if;
+    select file_path into v_path from public.submissions where team_id = v_team_id;
     delete from public.teams where id = v_team_id;
   end if;
+
+  return v_path;
 end $$;
 
 -- Reg-desk staff (admins) use this to let a last-minute walk-in sign in, when
@@ -459,11 +466,14 @@ end $$;
 -- transferred off the lead first (admin_transfer_lead) — mirrors the same
 -- rule leave_team() applies to self-service departures. A lead who is the
 -- sole member takes the team down with them, same as leave_team().
+-- Returns the removed solo lead's submission file_path (or null), so the
+-- caller can clean up storage — same reasoning as admin_delete_team below.
 create or replace function public.admin_remove_from_team(p_id uuid)
-returns void language plpgsql security definer set search_path = public as $$
+returns text language plpgsql security definer set search_path = public as $$
 declare
   v_team_id uuid;
   v_count   int;
+  v_path    text;
 begin
   if not public.is_admin() then
     raise exception 'Only organisers can remove a participant from their team.';
@@ -477,6 +487,7 @@ begin
     if v_count > 1 then
       raise exception 'They lead this team — transfer the lead to someone else first.';
     end if;
+    select file_path into v_path from public.submissions where team_id = v_team_id;
     -- Set before the delete: the FK's on-delete-set-null cascade fires
     -- protect_profile_columns_trg on this row too, which blocks team_id
     -- changes unless this flag is set for the transaction.
@@ -486,6 +497,8 @@ begin
     perform set_config('app.team_change', 'on', true);
     update public.profiles set team_id = null where id = p_id;
   end if;
+
+  return v_path;
 end $$;
 
 create or replace function public.admin_add_to_team(p_id uuid, p_team_id uuid)
@@ -741,6 +754,11 @@ create policy submission_files_update on storage.objects for update to authentic
     and public.is_my_team_lead(public.my_team_id())
   );
 
+-- The third clause exists for leave_team()'s solo-lead-departure path: by
+-- the time the app calls storage.remove() to clean up the old file, the RPC
+-- has already deleted the team row (so my_team_id() is now null for the
+-- caller) — this lets anyone clean up a file whose owning team no longer
+-- exists at all, without opening up deletion of any *active* team's files.
 drop policy if exists submission_files_delete on storage.objects;
 create policy submission_files_delete on storage.objects for delete to authenticated
   using (
@@ -748,5 +766,6 @@ create policy submission_files_delete on storage.objects for delete to authentic
     and (
       ((storage.foldername(name))[1] = public.my_team_id()::text and public.is_my_team_lead(public.my_team_id()))
       or public.is_admin()
+      or not exists (select 1 from public.teams where id = (storage.foldername(name))[1]::uuid)
     )
   );
