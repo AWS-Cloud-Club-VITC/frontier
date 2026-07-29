@@ -243,6 +243,216 @@ export async function addWalkinRegistration(
   return { ok: `${email} added — they can sign in now.` };
 }
 
+/* ---------- admin: participants, teams, registrations, submissions ---------- */
+// Each of these forwards to an admin_* RPC that checks is_admin() itself —
+// see supabase/schema.sql. No client-side role check here, same pattern as
+// addWalkinRegistration above.
+
+export async function adminUpdateProfile(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const id = str(formData.get("id"));
+  const full_name = str(formData.get("full_name"));
+  const reg_no = str(formData.get("reg_no")).toUpperCase();
+  const phone = str(formData.get("phone"));
+  const yearRaw = str(formData.get("year"));
+
+  const { error } = await supabase.rpc("admin_update_profile", {
+    p_id: id,
+    p_full_name: full_name,
+    p_reg_no: reg_no || null,
+    p_phone: phone || null,
+    p_year: yearRaw ? Number(yearRaw) : null,
+  });
+
+  if (error) {
+    console.error("[Action] adminUpdateProfile error:", error);
+    return { error: clean(error.message) };
+  }
+
+  revalidatePath("/admin");
+  return { ok: "Participant updated." };
+}
+
+export async function adminRemoveFromTeam(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const id = str(formData.get("id"));
+
+  const { error } = await supabase.rpc("admin_remove_from_team", { p_id: id });
+  if (error) {
+    console.error("[Action] adminRemoveFromTeam error:", error);
+    return { error: clean(error.message) };
+  }
+
+  revalidatePath("/admin");
+  return { ok: "Removed from team." };
+}
+
+export async function adminAddToTeam(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const id = str(formData.get("id"));
+  const teamId = str(formData.get("team_id"));
+
+  if (!teamId) return { error: "Pick a team first." };
+
+  const { error } = await supabase.rpc("admin_add_to_team", {
+    p_id: id,
+    p_team_id: teamId,
+  });
+  if (error) {
+    console.error("[Action] adminAddToTeam error:", error);
+    return { error: clean(error.message) };
+  }
+
+  revalidatePath("/admin");
+  return { ok: "Added to team." };
+}
+
+export async function adminTransferLead(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const teamId = str(formData.get("team_id"));
+  const newLeaderId = str(formData.get("new_leader_id"));
+
+  const { error } = await supabase.rpc("admin_transfer_lead", {
+    p_team_id: teamId,
+    p_new_leader_id: newLeaderId,
+  });
+  if (error) {
+    console.error("[Action] adminTransferLead error:", error);
+    return { error: clean(error.message) };
+  }
+
+  revalidatePath("/admin");
+  return { ok: "Lead transferred." };
+}
+
+export async function adminUpdateTeam(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const teamId = str(formData.get("team_id"));
+  const name = str(formData.get("name"));
+  const track = str(formData.get("track"));
+
+  const { error } = await supabase.rpc("admin_update_team", {
+    p_team_id: teamId,
+    p_name: name,
+    p_track: track,
+  });
+  if (error) {
+    console.error("[Action] adminUpdateTeam error:", error);
+    if (error.code === "23505") return { error: "That team name is taken." };
+    return { error: clean(error.message) };
+  }
+
+  revalidatePath("/admin");
+  return { ok: "Team updated." };
+}
+
+export async function adminDeleteTeam(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const teamId = str(formData.get("team_id"));
+
+  const { data: filePath, error } = await supabase.rpc("admin_delete_team", {
+    p_team_id: teamId,
+  });
+  if (error) {
+    console.error("[Action] adminDeleteTeam error:", error);
+    return { error: clean(error.message) };
+  }
+
+  if (filePath) {
+    const { error: removeError } = await supabase.storage.from("submissions").remove([filePath]);
+    if (removeError) {
+      console.error("[Action] adminDeleteTeam storage cleanup error:", removeError);
+    }
+  }
+
+  revalidatePath("/admin");
+  return { ok: "Team deleted." };
+}
+
+export async function adminUpdateRegistration(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const id = str(formData.get("id"));
+  const full_name = str(formData.get("full_name"));
+  const reg_no = str(formData.get("reg_no")).toUpperCase();
+
+  const { error } = await supabase.rpc("admin_update_registration", {
+    p_id: id,
+    p_full_name: full_name || null,
+    p_reg_no: reg_no || null,
+  });
+  if (error) {
+    console.error("[Action] adminUpdateRegistration error:", error);
+    return { error: clean(error.message) };
+  }
+
+  revalidatePath("/admin");
+  return { ok: "Registration updated." };
+}
+
+export async function adminDeleteRegistration(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const id = str(formData.get("id"));
+
+  const { error } = await supabase.rpc("admin_delete_registration", { p_id: id });
+  if (error) {
+    console.error("[Action] adminDeleteRegistration error:", error);
+    return { error: clean(error.message) };
+  }
+
+  revalidatePath("/admin");
+  return { ok: "Registration removed." };
+}
+
+export async function adminDeleteSubmission(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const id = str(formData.get("id"));
+
+  const { data: filePath, error } = await supabase.rpc("admin_delete_submission", {
+    p_id: id,
+  });
+  if (error) {
+    console.error("[Action] adminDeleteSubmission error:", error);
+    return { error: clean(error.message) };
+  }
+
+  if (filePath) {
+    const { error: removeError } = await supabase.storage.from("submissions").remove([filePath]);
+    if (removeError) {
+      console.error("[Action] adminDeleteSubmission storage cleanup error:", removeError);
+    }
+  }
+
+  revalidatePath("/admin");
+  return { ok: "Submission deleted." };
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
@@ -287,10 +497,10 @@ export async function uploadSubmission(
   const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
   const storagePath = `${teamId}/${Date.now()}_${safeName}`;
 
-  // Get current submission version if any
+  // Get current submission version and file, if any
   const { data: existing } = await supabase
     .from("submissions")
-    .select("version")
+    .select("version, file_path")
     .eq("team_id", teamId)
     .maybeSingle();
 
@@ -329,6 +539,17 @@ export async function uploadSubmission(
   if (dbError) {
     console.error("[Action] uploadSubmission DB error:", dbError);
     return { error: clean(dbError.message) };
+  }
+
+  if (existing?.file_path && existing.file_path !== storagePath) {
+    const { error: removeError } = await supabase.storage
+      .from("submissions")
+      .remove([existing.file_path]);
+    if (removeError) {
+      // Non-fatal: the new submission is already saved and pointed at by the
+      // DB row. Just leaves an orphaned old file in storage to clean up later.
+      console.error("[Action] uploadSubmission old file cleanup error:", removeError);
+    }
   }
 
   revalidatePath("/dashboard");

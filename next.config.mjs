@@ -11,10 +11,14 @@ const nextConfig = {
   // trace root here so Next doesn't walk up into it
   outputFileTracingRoot: __dirname,
   experimental: {
-    // matches the 8 MB cap enforced in uploadSubmission (app/actions.ts) — the
-    // server action's own body limit defaults to 1 MB and rejects the file first
+    // Kept above the 8 MB app-level cap in uploadSubmission (app/actions.ts) on
+    // purpose: if this equals the app cap, Next's own body-size limit rejects
+    // oversized requests before uploadSubmission's code ever runs, producing a
+    // raw framework error page instead of the friendly { error } message. The
+    // server action's own body limit defaults to 1 MB and rejects the file
+    // first if unset entirely.
     serverActions: {
-      bodySizeLimit: "8mb",
+      bodySizeLimit: "10mb",
     },
   },
 };

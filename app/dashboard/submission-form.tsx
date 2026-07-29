@@ -21,6 +21,21 @@ export function SubmissionForm({
   const [state, formAction, isPending] = useActionState(uploadSubmission, initialState);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isReplacing, setIsReplacing] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
+
+  const MAX_FILE_SIZE = 8388608; // 8 MB, matches the server-side cap in uploadSubmission
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (file && file.size > MAX_FILE_SIZE) {
+      setClientError("File exceeds maximum allowed size of 8 MB.");
+      setSelectedFile(null);
+      e.target.value = "";
+      return;
+    }
+    setClientError(null);
+    setSelectedFile(file);
+  }
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -142,12 +157,14 @@ export function SubmissionForm({
                 type="file"
                 name="file"
                 accept=".pdf,.pptx,.ppt,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                onChange={handleFileChange}
                 className="hidden"
                 required
               />
             </label>
           </div>
+
+          {clientError && <Notice tone="error">{clientError}</Notice>}
 
           <div className="flex items-center gap-3">
             <Button

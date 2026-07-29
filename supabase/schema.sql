@@ -421,6 +421,184 @@ begin
         reg_no    = coalesce(excluded.reg_no, public.registrations.reg_no);
 end $$;
 
+-- --------------------------------------------------------- admin RPCs -----
+-- Organiser-only mutations for the /admin data portal. Unlike the self-service
+-- RPCs above (scoped to the caller's own team), each of these can act on any
+-- participant, team, registration or submission — gated purely on is_admin().
+
+create or replace function public.admin_update_profile(
+  p_id uuid,
+  p_full_name text,
+  p_reg_no text,
+  p_phone text,
+  p_year smallint
+)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only organisers can edit participant details.';
+  end if;
+  if p_full_name is null or trim(p_full_name) = '' then
+    raise exception 'Name cannot be empty.';
+  end if;
+
+  update public.profiles
+  set full_name = trim(p_full_name),
+      reg_no    = nullif(upper(trim(coalesce(p_reg_no, ''))), ''),
+      phone     = nullif(trim(coalesce(p_phone, '')), ''),
+      year      = p_year
+  where id = p_id;
+end $$;
+
+-- Kicks a participant off their team. A lead with teammates must be
+-- transferred off the lead first (admin_transfer_lead) — mirrors the same
+-- rule leave_team() applies to self-service departures. A lead who is the
+-- sole member takes the team down with them, same as leave_team().
+create or replace function public.admin_remove_from_team(p_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_team_id uuid;
+  v_count   int;
+begin
+  if not public.is_admin() then
+    raise exception 'Only organisers can remove a participant from their team.';
+  end if;
+
+  select team_id into v_team_id from public.profiles where id = p_id;
+  if v_team_id is null then raise exception 'They are not on a team.'; end if;
+
+  if exists (select 1 from public.teams where id = v_team_id and leader_id = p_id) then
+    select count(*) into v_count from public.profiles where team_id = v_team_id;
+    if v_count > 1 then
+      raise exception 'They lead this team — transfer the lead to someone else first.';
+    end if;
+    -- Set before the delete: the FK's on-delete-set-null cascade fires
+    -- protect_profile_columns_trg on this row too, which blocks team_id
+    -- changes unless this flag is set for the transaction.
+    perform set_config('app.team_change', 'on', true);
+    delete from public.teams where id = v_team_id;
+  else
+    perform set_config('app.team_change', 'on', true);
+    update public.profiles set team_id = null where id = p_id;
+  end if;
+end $$;
+
+create or replace function public.admin_add_to_team(p_id uuid, p_team_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_target public.profiles;
+begin
+  if not public.is_admin() then
+    raise exception 'Only organisers can add a participant to a team.';
+  end if;
+
+  select * into v_target from public.profiles where id = p_id;
+  if not found then raise exception 'Participant not found.'; end if;
+  if v_target.full_name is null or v_target.reg_no is null then
+    raise exception 'They have not filled in their details yet.';
+  end if;
+  if v_target.team_id is not null then
+    raise exception 'They are already on a team.';
+  end if;
+  if not exists (select 1 from public.teams where id = p_team_id) then
+    raise exception 'Team not found.';
+  end if;
+
+  perform set_config('app.team_change', 'on', true);
+  update public.profiles set team_id = p_team_id where id = p_id;
+end $$;
+
+create or replace function public.admin_transfer_lead(p_team_id uuid, p_new_leader_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only organisers can transfer a team lead.';
+  end if;
+  if not exists (
+    select 1 from public.profiles where id = p_new_leader_id and team_id = p_team_id
+  ) then
+    raise exception 'They are not on that team.';
+  end if;
+
+  update public.teams set leader_id = p_new_leader_id where id = p_team_id;
+end $$;
+
+create or replace function public.admin_update_team(p_team_id uuid, p_name text, p_track text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only organisers can edit team details.';
+  end if;
+  if p_name is null or trim(p_name) = '' then
+    raise exception 'Team name cannot be empty.';
+  end if;
+
+  update public.teams set name = trim(p_name), track = p_track where id = p_team_id;
+end $$;
+
+-- Returns the deleted team's submission file_path (or null), so the caller
+-- can clean up the orphaned storage object — the submissions row itself is
+-- gone via the on-delete-cascade FK before this function returns.
+create or replace function public.admin_delete_team(p_team_id uuid)
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  v_path text;
+begin
+  if not public.is_admin() then
+    raise exception 'Only organisers can delete a team.';
+  end if;
+
+  select file_path into v_path from public.submissions where team_id = p_team_id;
+  -- Set before the delete: the FK's on-delete-set-null cascade updates every
+  -- remaining member's team_id, which protect_profile_columns_trg blocks
+  -- unless this flag is set for the transaction.
+  perform set_config('app.team_change', 'on', true);
+  delete from public.teams where id = p_team_id;
+  return v_path;
+end $$;
+
+create or replace function public.admin_update_registration(
+  p_id uuid,
+  p_full_name text,
+  p_reg_no text
+)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only organisers can edit a registration.';
+  end if;
+
+  update public.registrations
+  set full_name = nullif(trim(coalesce(p_full_name, '')), ''),
+      reg_no    = nullif(upper(trim(coalesce(p_reg_no, ''))), '')
+  where id = p_id;
+end $$;
+
+create or replace function public.admin_delete_registration(p_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only organisers can remove a registration.';
+  end if;
+
+  delete from public.registrations where id = p_id;
+end $$;
+
+-- Returns the deleted submission's file_path so the caller can remove the
+-- matching object from storage.
+create or replace function public.admin_delete_submission(p_id uuid)
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  v_path text;
+begin
+  if not public.is_admin() then
+    raise exception 'Only organisers can delete a submission.';
+  end if;
+
+  delete from public.submissions where id = p_id returning file_path into v_path;
+  return v_path;
+end $$;
+
 -- --------------------------------------------------------- row security ---
 
 alter table public.profiles      enable row level security;
@@ -488,7 +666,16 @@ revoke all on function
   public.transfer_lead(uuid),
   public.update_team(text, text),
   public.leave_team(),
-  public.add_walkin_registration(text, text, text)
+  public.add_walkin_registration(text, text, text),
+  public.admin_update_profile(uuid, text, text, text, smallint),
+  public.admin_remove_from_team(uuid),
+  public.admin_add_to_team(uuid, uuid),
+  public.admin_transfer_lead(uuid, uuid),
+  public.admin_update_team(uuid, text, text),
+  public.admin_delete_team(uuid),
+  public.admin_update_registration(uuid, text, text),
+  public.admin_delete_registration(uuid),
+  public.admin_delete_submission(uuid)
 from public, anon;
 
 grant execute on function
@@ -499,7 +686,16 @@ grant execute on function
   public.transfer_lead(uuid),
   public.update_team(text, text),
   public.leave_team(),
-  public.add_walkin_registration(text, text, text)
+  public.add_walkin_registration(text, text, text),
+  public.admin_update_profile(uuid, text, text, text, smallint),
+  public.admin_remove_from_team(uuid),
+  public.admin_add_to_team(uuid, uuid),
+  public.admin_transfer_lead(uuid, uuid),
+  public.admin_update_team(uuid, text, text),
+  public.admin_delete_team(uuid),
+  public.admin_update_registration(uuid, text, text),
+  public.admin_delete_registration(uuid),
+  public.admin_delete_submission(uuid)
 to authenticated;
 
 -- ------------------------------------------------------------- storage ----
@@ -532,4 +728,11 @@ create policy submission_files_update on storage.objects for update to authentic
   using (
     bucket_id = 'submissions'
     and (storage.foldername(name))[1] = public.my_team_id()::text
+  );
+
+drop policy if exists submission_files_delete on storage.objects;
+create policy submission_files_delete on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'submissions'
+    and ((storage.foldername(name))[1] = public.my_team_id()::text or public.is_admin())
   );

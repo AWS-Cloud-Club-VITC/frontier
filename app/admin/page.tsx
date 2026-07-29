@@ -131,13 +131,16 @@ export default async function AdminPage() {
         track: t.track,
         join_code: t.join_code,
         memberCount: 0,
+        leader_id: t.leader_id,
         leaderName: null,
         leaderEmail: null,
+        members: [],
         submission: submissionByTeam.get(t.id) ?? null,
       });
     }
     const agg = teamMap.get(t.id)!;
     agg.memberCount += 1;
+    agg.members.push({ id: r.id, full_name: r.full_name });
     if (r.id === t.leader_id) {
       agg.leaderName = r.full_name;
       agg.leaderEmail = r.email;
