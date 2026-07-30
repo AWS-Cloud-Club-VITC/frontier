@@ -2,21 +2,30 @@
 
 import { useEffect, useState } from "react";
 
-// Fixed instant — 5:30 PM IST, 30 July 2026 (Day 1's on-site building cutoff).
-// Not "today at 5:30pm" recomputed on the visitor's clock: this is a one-off
-// cutoff for this specific day, not a recurring daily deadline.
-const DEADLINE = new Date("2026-07-30T17:30:00+05:30").getTime();
+// Fixed instants for this specific event — not "today"/"tomorrow" recomputed
+// on the visitor's clock. One-off cutoffs on specific calendar days, not a
+// recurring daily deadline.
+const DAY1_DEADLINE = new Date("2026-07-30T17:30:00+05:30").getTime(); // Day 1 building cutoff
+const DAY2_DEADLINE = new Date("2026-07-31T11:00:00+05:30").getTime(); // Day 2 final evaluation starts
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
+/** Whichever deadline hasn't passed yet, so the banner transitions from Day 1
+ *  straight into Day 2 without anyone needing to swap it out overnight. */
+function currentPhase(now: number) {
+  if (now < DAY1_DEADLINE) return { label: "Day 1", target: DAY1_DEADLINE };
+  if (now < DAY2_DEADLINE) return { label: "Day 2", target: DAY2_DEADLINE };
+  return null;
+}
+
 export function BuildDeadlineCountdown() {
-  const [msLeft, setMsLeft] = useState<number | null>(null);
+  const [now, setNow] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    const tick = () => setMsLeft(DEADLINE - Date.now());
+    const tick = () => setNow(Date.now());
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -25,21 +34,23 @@ export function BuildDeadlineCountdown() {
   // Null on first render (server + initial client paint) so the server's
   // clock is never compared against the visitor's — avoids a hydration
   // mismatch and a one-second flash of the wrong state.
-  if (msLeft === null) return null;
+  if (now === null) return null;
 
-  if (msLeft <= 0) {
+  const phase = currentPhase(now);
+
+  if (!phase) {
     return (
       <div className="border-b-[3px] border-ink bg-ink">
         <div className="mx-auto max-w-6xl px-5 py-3 text-center">
           <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-paper/70">
-            Day 1 on-site building has wrapped — keep building, submit by 10 PM.
+            Day 2 final evaluation is underway.
           </p>
         </div>
       </div>
     );
   }
 
-  const totalSeconds = Math.floor(msLeft / 1000);
+  const totalSeconds = Math.floor((phase.target - now) / 1000);
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
@@ -59,7 +70,7 @@ export function BuildDeadlineCountdown() {
             expanded ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"
           }`}
         >
-          Day 1
+          {phase.label}
         </p>
         <div className="flex items-center gap-3">
           {!expanded && (
