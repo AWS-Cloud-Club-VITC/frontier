@@ -77,3 +77,26 @@ export const EVENT_SCHEDULE: { day: string; items: ScheduleItem[] }[] = [
     ],
   },
 ];
+
+// Reuses ScheduleItem's {time, title} shape — "time" holds the weight here —
+// so the Evaluation Criteria section on the landing page can render with the
+// same ScheduleList component as Event Flow, dark cards and all. "day" is a
+// plain label (not EVENT.day1/day2), which carry time-of-day text that
+// doesn't apply to a criteria list.
+export const EVALUATION_CRITERIA: { day: string; items: ScheduleItem[] }[] = [
+  {
+    day: "Day 1",
+    items: [
+      { time: "10%", title: "PowerPoint presentation" },
+      { time: "20%", title: "GitHub repository and video submission" },
+    ],
+  },
+  {
+    day: "Day 2",
+    items: [
+      { time: "10%", title: "Frontend implementation" },
+      { time: "30%", title: "Innovation and creativity" },
+      { time: "30%", title: "Real-world application and feasibility" },
+    ],
+  },
+];

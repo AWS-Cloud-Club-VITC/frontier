@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ButtonLink, Chip, Panel } from "@/components/ui";
 import { ChipMark, LogoLockup, Wordmark } from "@/components/logo";
 import { ScheduleList } from "@/components/schedule-list";
-import { EVENT, EVENT_SCHEDULE, TRACKS } from "@/lib/constants";
+import { BuildDeadlineCountdown } from "@/components/countdown";
+import { EVALUATION_CRITERIA, EVENT, EVENT_SCHEDULE, TRACKS } from "@/lib/constants";
 
 export default async function Home() {
   // The landing page must render even if Supabase is unreachable — it is the
@@ -28,6 +29,8 @@ export default async function Home() {
           </ButtonLink>
         </div>
       </nav>
+
+      <BuildDeadlineCountdown />
 
       {/* ---------- hero ---------- */}
       <section className="border-b-[3px] border-ink bg-ink">
@@ -174,6 +177,26 @@ export default async function Home() {
 
           <div className="mt-10 grid gap-5 md:grid-cols-2">
             {EVENT_SCHEDULE.map((day, i) => (
+              <Panel key={day.day} tone="ink" className="p-7">
+                <Chip tone="purple">Day {i + 1}</Chip>
+                <div className="mt-4 font-display text-2xl">{day.day}</div>
+                <ScheduleList items={day.items} dark />
+              </Panel>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- evaluation criteria ---------- */}
+      <section className="border-b-[3px] border-ink">
+        <div className="mx-auto max-w-6xl px-5 py-16">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <h2 className="font-display text-4xl sm:text-5xl">EVALUATION CRITERIA</h2>
+            <p className="label">weighted out of 100</p>
+          </div>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-2">
+            {EVALUATION_CRITERIA.map((day, i) => (
               <Panel key={day.day} tone="ink" className="p-7">
                 <Chip tone="purple">Day {i + 1}</Chip>
                 <div className="mt-4 font-display text-2xl">{day.day}</div>
