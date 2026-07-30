@@ -6,7 +6,7 @@ import { AppHeader } from "@/components/app-header";
 import { CopyCode } from "@/components/copy-code";
 import { ButtonLink, Chip, Panel } from "@/components/ui";
 import { ScheduleList } from "@/components/schedule-list";
-import { EVENT, EVENT_SCHEDULE, MAX_TEAM_SIZE, SUBMISSIONS_OPEN } from "@/lib/constants";
+import { EVENT, EVENT_SCHEDULE, MAX_TEAM_SIZE, SUBMISSIONS_OPEN, TRACKS } from "@/lib/constants";
 import { SubmissionForm } from "./submission-form";
 
 export const metadata = { title: "Dashboard · FRONTIER 2026" };
@@ -150,6 +150,36 @@ export default async function DashboardPage() {
               submission={submission}
               downloadUrl={downloadUrl}
             />
+
+            {/* tracks */}
+            <Panel className="p-7">
+              <p className="label">Tracks & Reference PPTs</p>
+              <h3 className="mt-2 font-display text-2xl">FIVE TRACKS</h3>
+              <ul className="mt-4 space-y-2">
+                {TRACKS.map((track, i) => (
+                  <li
+                    key={track}
+                    className="flex items-center gap-3 border-[2px] border-ink bg-paper p-3 font-sans text-sm font-bold"
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-ink bg-ink font-mono text-xs font-bold text-paper">
+                      0{i + 1}
+                    </span>
+                    <span>{track}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5">
+                <ButtonLink
+                  href="https://drive.google.com/drive/folders/1UUkqYvdxtbLqEYbah9xMK6uDpsO10AcD?usp=drive_link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="primary"
+                  className="w-full"
+                >
+                  Reference PPTs
+                </ButtonLink>
+              </div>
+            </Panel>
 
             {/* event flow */}
             <Panel className="p-7">

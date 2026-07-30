@@ -119,6 +119,17 @@ export default async function Home() {
               </p>
             </div>
           </div>
+
+          <div className="mt-10 flex justify-center">
+            <ButtonLink
+              href="https://drive.google.com/drive/folders/1UUkqYvdxtbLqEYbah9xMK6uDpsO10AcD?usp=drive_link"
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="primary"
+            >
+              Reference PPTs
+            </ButtonLink>
+          </div>
         </div>
       </section>
 
