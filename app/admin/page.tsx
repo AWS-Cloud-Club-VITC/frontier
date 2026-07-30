@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getProfile, getSubmissionDownloadUrl } from "@/lib/data";
 import { AppHeader } from "@/components/app-header";
 import { Chip, Panel } from "@/components/ui";
-import { ATTENDANCE_SESSIONS, TRACKS, TRACK_PPTS, type AttendanceSession } from "@/lib/constants";
+import { ATTENDANCE_SESSIONS, TRACKS, type AttendanceSession } from "@/lib/constants";
 import { WalkinForm } from "./walkin-form";
 import {
   DataTabs,
@@ -245,62 +245,22 @@ export default async function AdminPage() {
         </div>
 
         {/* per track */}
-        <div className="mt-8">
-          <div className="flex flex-wrap items-end justify-between gap-4 mb-4">
-            <div>
-              <p className="label-muted">Tracks & Resources</p>
-              <h2 className="font-display text-2xl sm:text-3xl mt-1">FIVE TRACKS</h2>
-            </div>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {perTrack.map((t, i) => (
+        <Panel className="mt-6 p-6">
+          <p className="label-muted">Teams per track</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {perTrack.map((t) => (
               <div
                 key={t.track}
-                className="border-[3px] border-ink bg-paper p-6 shadow-brut flex flex-col justify-between"
+                className="flex items-center gap-3 border-[3px] border-ink px-4 py-2"
               >
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center border-[3px] border-ink bg-ink font-mono text-sm font-bold text-paper">
-                        {String(i + 1).padStart(2, "0")}
-                      </div>
-                      <h3 className="font-display text-lg sm:text-xl leading-tight uppercase">
-                        {t.track}
-                      </h3>
-                    </div>
-                    <span className="shrink-0 border-[3px] border-ink bg-ink px-2.5 py-1 font-mono text-xs font-bold text-paper">
-                      {t.teams} {t.teams === 1 ? "team" : "teams"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-4 border-t-[2px] border-ink/15 flex items-center justify-between">
-                  <a
-                    href={`/api/ppts/${encodeURIComponent(TRACK_PPTS[t.track as keyof typeof TRACK_PPTS])}`}
-                    download
-                    className="inline-flex items-center gap-2 border-[3px] border-ink bg-purple px-4 py-2 font-sans text-xs font-bold uppercase tracking-wide text-paper shadow-brut-sm transition-all duration-100 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
-                  >
-                    <svg
-                      className="h-4 w-4 shrink-0"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                      />
-                    </svg>
-                    <span>Download PPT</span>
-                  </a>
-                </div>
+                <span className="font-sans text-sm font-bold">{t.track}</span>
+                <span className="border-[3px] border-ink bg-ink px-2 py-0.5 font-mono text-xs font-bold text-paper">
+                  {t.teams}
+                </span>
               </div>
             ))}
           </div>
-        </div>
+        </Panel>
 
         {/* walk-in registration */}
         <Panel className="mt-6 p-6">

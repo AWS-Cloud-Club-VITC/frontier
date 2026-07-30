@@ -15,14 +15,6 @@ export const TRACKS = [
 
 export type Track = (typeof TRACKS)[number];
 
-export const TRACK_PPTS: Record<Track, string> = {
-  "LLM Fine-Tuning": "LLM Finetuning - Zero to Deployed.pptx",
-  "Agentic Systems": "FRONTIER AGENTIC SYSTEMS.pptx",
-  Automation: "AI_Automation_Frontier_v2.pptx",
-  "Dev Productivity": "frontier_dev_prod_ppt.pptx",
-  "AI Safety & Observability": "AI_Safety_Observability.pptx",
-};
-
 export const ATTENDANCE_SESSIONS = [
   { key: "day1_morning", label: "Day 1 AM" },
   { key: "day1_afternoon", label: "Day 1 PM" },
