@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { SUBMISSIONS_OPEN, TRACKS } from "@/lib/constants";
+import { SUBMISSIONS_OPEN, TRACKS, type AttendanceSession } from "@/lib/constants";
 import { getProfile } from "@/lib/data";
 
 export type ActionState = { error?: string; ok?: string };
@@ -465,6 +465,31 @@ export async function adminDeleteSubmission(
 
   revalidatePath("/admin");
   return { ok: "Submission deleted." };
+}
+
+// Called directly from the Attendance tab's checkboxes (not a <form>), so it
+// takes plain arguments instead of the (prevState, formData) shape the rest
+// of this file uses for useActionState-driven forms.
+export async function adminSetAttendance(
+  registrationId: string,
+  session: AttendanceSession,
+  present: boolean
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("admin_set_attendance", {
+    p_registration_id: registrationId,
+    p_session: session,
+    p_present: present,
+  });
+
+  if (error) {
+    console.error("[Action] adminSetAttendance error:", error);
+    return { error: clean(error.message) };
+  }
+
+  revalidatePath("/admin");
+  return {};
 }
 
 export async function signOut() {

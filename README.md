@@ -23,8 +23,8 @@ proxy.
 | `/onboarding`             | Signed in  | Profile details, then create or join a team                                               |
 | `/dashboard`              | Signed in  | Team roster, join code, submission status                                                 |
 | `/team`                   | Team leads | Add/remove members, transfer lead, rename, change track                                   |
-| `/admin`                  | Organisers | Stats, walk-in sign-in, tabbed data portal (participants/teams/submissions/registrations) |
-| `/admin/export?dataset=…` | Organisers | CSV download — `participants` (default), `teams`, `submissions`, or `registrations`       |
+| `/admin`                  | Organisers | Stats, walk-in sign-in, tabbed data portal (participants/teams/submissions/registrations/attendance) |
+| `/admin/export?dataset=…` | Organisers | CSV download — `participants` (default), `teams`, `submissions`, `registrations`, or `attendance` |
 
 ## Who can sign in
 
@@ -56,6 +56,16 @@ permissions server-side. The client cannot write to `teams` at all, and cannot c
 its own `team_id` — a trigger blocks it. That means the rules hold even if someone
 calls the REST API directly with their own token.
 
+## Attendance
+
+Organisers mark attendance from the **Attendance** tab on `/admin` — one row per
+registration (so it covers walk-ins too, whether or not they've signed in yet), with a
+checkbox for each of the four sessions: Day 1 AM/PM and Day 2 AM/PM. Toggling a box
+calls `admin_set_attendance`, a `SECURITY DEFINER` Postgres function gated on
+`is_admin()`, same pattern as every other write in this app — there is no
+insert/update policy on the `attendance` table itself, only admin-gated select plus
+that one RPC. Exports as its own CSV dataset (`?dataset=attendance`).
+
 ## Local development
 
 ```bash
@@ -78,12 +88,13 @@ app/
   admin/
     page.tsx             stats, per-track counts, walk-in panel, data portal
     walkin-form.tsx       reg-desk "add a walk-in" form
-    data-tabs.tsx         tabbed participants/teams/submissions/registrations views
-    export/route.ts       CSV download, ?dataset=participants|teams|submissions|registrations
+    data-tabs.tsx         tabbed participants/teams/submissions/registrations/attendance views
+    attendance-row.tsx    per-session attendance checkboxes for one registration
+    export/route.ts       CSV download, ?dataset=participants|teams|submissions|registrations|attendance
   actions.ts            all server actions
 components/             ui primitives, logo, header
 lib/
-  constants.ts          tracks, team size, domain, SUBMISSIONS_OPEN flag
+  constants.ts          tracks, team size, domain, SUBMISSIONS_OPEN flag, attendance sessions
   data.ts               profile/team queries
   csv.ts                shared CSV cell-escaping + BOM helpers
   supabase/             browser + server clients

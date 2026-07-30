@@ -15,6 +15,15 @@ export const TRACKS = [
 
 export type Track = (typeof TRACKS)[number];
 
+export const ATTENDANCE_SESSIONS = [
+  { key: "day1_morning", label: "Day 1 AM" },
+  { key: "day1_afternoon", label: "Day 1 PM" },
+  { key: "day2_morning", label: "Day 2 AM" },
+  { key: "day2_afternoon", label: "Day 2 PM" },
+] as const;
+
+export type AttendanceSession = (typeof ATTENDANCE_SESSIONS)[number]["key"];
+
 export const EVENT = {
   name: "FRONTIER",
   tagline: "Build the next AI",

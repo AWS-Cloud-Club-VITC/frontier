@@ -6,8 +6,10 @@ import { ParticipantRow } from "./participant-row";
 import { TeamRow } from "./team-row";
 import { RegistrationRow } from "./registration-row";
 import { SubmissionRow } from "./submission-row";
+import { AttendanceRow } from "./attendance-row";
 
 import { withBasePath } from "@/lib/base-path";
+import { ATTENDANCE_SESSIONS, type AttendanceSession } from "@/lib/constants";
 
 export type ParticipantRow = {
   id: string;
@@ -54,7 +56,15 @@ export type RegistrationRow = {
   created_at: string;
 };
 
-const TABS = ["participants", "teams", "submissions", "registrations"] as const;
+export type AttendanceRow = {
+  registrationId: string;
+  email: string;
+  full_name: string | null;
+  reg_no: string | null;
+  sessions: Record<AttendanceSession, boolean>;
+};
+
+const TABS = ["participants", "teams", "submissions", "registrations", "attendance"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_LABEL: Record<Tab, string> = {
@@ -62,6 +72,7 @@ const TAB_LABEL: Record<Tab, string> = {
   teams: "Teams",
   submissions: "Submissions",
   registrations: "Registrations",
+  attendance: "Attendance",
 };
 
 /** Groups teammates together: by team name (no-team last), lead first within a team. */
@@ -80,11 +91,13 @@ export function DataTabs({
   teams,
   submissions,
   registrations,
+  attendance,
 }: {
   participants: ParticipantRow[];
   teams: TeamRow[];
   submissions: SubmissionRow[];
   registrations: RegistrationRow[];
+  attendance: AttendanceRow[];
 }) {
   const [tab, setTab] = useState<Tab>("participants");
 
@@ -93,6 +106,7 @@ export function DataTabs({
     teams: teams.length,
     submissions: submissions.length,
     registrations: registrations.length,
+    attendance: attendance.length,
   };
 
   return (
@@ -235,6 +249,37 @@ export function DataTabs({
               {registrations.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center font-sans text-muted">
+                    No registrations imported yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+
+        {tab === "attendance" && (
+          <table className="w-full min-w-[900px] border-collapse text-left">
+            <thead>
+              <tr className="border-b-[3px] border-ink bg-purple-wash">
+                {["Email", "Full name", "Reg no", ...ATTENDANCE_SESSIONS.map((s) => s.label), "Status"].map(
+                  (h) => (
+                    <th key={h} className="px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.14em]">
+                      {h}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {attendance.map((r) => (
+                <AttendanceRow key={r.registrationId} row={r} />
+              ))}
+              {attendance.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={ATTENDANCE_SESSIONS.length + 4}
+                    className="px-4 py-10 text-center font-sans text-muted"
+                  >
                     No registrations imported yet.
                   </td>
                 </tr>
