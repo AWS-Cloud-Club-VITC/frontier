@@ -25,8 +25,9 @@ of participants.
    file, paste it in, and hit **Run**.
 3. You should see `Success. No rows returned`.
 
-This creates the `profiles`, `teams` and `submissions` tables, the row-level security
-policies, the team-management functions, and the private `submissions` storage bucket.
+This creates the `profiles`, `teams`, `submissions`, `registrations` and `attendance`
+tables, the row-level security policies, the team-management functions, and the
+private `submissions` storage bucket.
 
 The file is safe to run again if you need to reapply it.
 
