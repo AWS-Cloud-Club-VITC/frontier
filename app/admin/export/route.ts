@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { toCsv } from "@/lib/csv";
+import { ATTENDANCE_SESSIONS, type AttendanceSession } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -36,7 +37,13 @@ type RegistrationRow = {
   created_at: string;
 };
 
-const DATASETS = ["participants", "teams", "submissions", "registrations"] as const;
+type AttendanceQueryRow = {
+  registration_id: string;
+  session: AttendanceSession;
+  present: boolean;
+};
+
+const DATASETS = ["participants", "teams", "submissions", "registrations", "attendance"] as const;
 type Dataset = (typeof DATASETS)[number];
 
 export async function GET(request: Request) {
@@ -153,6 +160,34 @@ export async function GET(request: Request) {
       r.added_by ? adderMap.get(r.added_by)?.email ?? "reg desk" : "Excel import",
       r.created_at,
     ]);
+  } else if (dataset === "attendance") {
+    const { data: registrationsData } = await supabase
+      .from("registrations")
+      .select("id, email, full_name, reg_no, created_at")
+      .order("created_at", { ascending: true });
+    const { data: attendanceData } = await supabase
+      .from("attendance")
+      .select("registration_id, session, present");
+
+    const registrations = registrationsData ?? [];
+    const attendanceRows = (attendanceData ?? []) as unknown as AttendanceQueryRow[];
+
+    const byRegistration = new Map<string, Partial<Record<AttendanceSession, boolean>>>();
+    for (const a of attendanceRows) {
+      if (!byRegistration.has(a.registration_id)) byRegistration.set(a.registration_id, {});
+      byRegistration.get(a.registration_id)![a.session] = a.present;
+    }
+
+    header = ["Email", "Full Name", "Registration No", ...ATTENDANCE_SESSIONS.map((s) => s.label)];
+    rows = registrations.map((r) => {
+      const marked = byRegistration.get(r.id) ?? {};
+      return [
+        r.email,
+        r.full_name ?? "",
+        r.reg_no ?? "",
+        ...ATTENDANCE_SESSIONS.map((s) => (marked[s.key] ? "Present" : "Absent")),
+      ];
+    });
   } else {
     const { data } = await supabase
       .from("profiles")

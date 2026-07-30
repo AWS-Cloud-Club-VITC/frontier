@@ -53,10 +53,26 @@ create table if not exists public.registrations (
   created_at timestamptz not null default now()
 );
 
+-- One row per registration per session; present/absent is a toggle, not a
+-- log, so re-marking the same session just updates the row (see the RPC
+-- below). Keyed off registrations, not profiles, so attendance can be taken
+-- for anyone on the allowlist regardless of whether they've signed in yet.
+create table if not exists public.attendance (
+  id              uuid primary key default gen_random_uuid(),
+  registration_id uuid not null references public.registrations(id) on delete cascade,
+  session         text not null check (session in (
+                    'day1_morning', 'day1_afternoon', 'day2_morning', 'day2_afternoon')),
+  present         boolean not null default true,
+  marked_by       uuid references auth.users(id),
+  marked_at       timestamptz not null default now(),
+  unique (registration_id, session)
+);
+
 create index if not exists profiles_team_id_idx on public.profiles(team_id);
 create index if not exists teams_join_code_idx  on public.teams(join_code);
 -- case-insensitive: the pre-event Excel import and reg-desk entries won't agree on case
 create unique index if not exists registrations_email_lower_idx on public.registrations (lower(email));
+create index if not exists attendance_registration_id_idx on public.attendance(registration_id);
 
 -- ------------------------------------------------------------- helpers ----
 -- SECURITY DEFINER so they run as the table owner and bypass RLS. This is what
@@ -436,6 +452,35 @@ begin
         reg_no    = coalesce(excluded.reg_no, public.registrations.reg_no);
 end $$;
 
+-- Reg-desk / floor staff (admins) mark someone present or absent for one of
+-- the four sessions. Upserts on (registration_id, session) so toggling a
+-- checkbox on and off just updates the same row instead of accumulating one
+-- insert-only permission check per click.
+create or replace function public.admin_set_attendance(
+  p_registration_id uuid,
+  p_session text,
+  p_present boolean
+)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only organisers can record attendance.';
+  end if;
+  if p_session not in ('day1_morning', 'day1_afternoon', 'day2_morning', 'day2_afternoon') then
+    raise exception 'Unknown attendance session.';
+  end if;
+  if not exists (select 1 from public.registrations where id = p_registration_id) then
+    raise exception 'Registration not found.';
+  end if;
+
+  insert into public.attendance (registration_id, session, present, marked_by, marked_at)
+  values (p_registration_id, p_session, p_present, auth.uid(), now())
+  on conflict (registration_id, session) do update
+    set present   = excluded.present,
+        marked_by = excluded.marked_by,
+        marked_at = excluded.marked_at;
+end $$;
+
 -- --------------------------------------------------------- admin RPCs -----
 -- Organiser-only mutations for the /admin data portal. Unlike the self-service
 -- RPCs above (scoped to the caller's own team), each of these can act on any
@@ -628,6 +673,7 @@ alter table public.profiles      enable row level security;
 alter table public.teams         enable row level security;
 alter table public.submissions   enable row level security;
 alter table public.registrations enable row level security;
+alter table public.attendance    enable row level security;
 
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles for select to authenticated
@@ -675,6 +721,12 @@ drop policy if exists registrations_select on public.registrations;
 create policy registrations_select on public.registrations for select to authenticated
   using (public.is_admin());
 
+-- attendance is only ever written through admin_set_attendance — no
+-- insert/update/delete policy here, same reasoning as teams/registrations above.
+drop policy if exists attendance_select on public.attendance;
+create policy attendance_select on public.attendance for select to authenticated
+  using (public.is_admin());
+
 -- -------------------------------------------------------------- grants ----
 
 grant usage on schema public to authenticated;
@@ -682,6 +734,7 @@ grant select, insert, update on public.profiles to authenticated;
 grant select          on public.teams       to authenticated;
 grant select, insert, update on public.submissions to authenticated;
 grant select on public.registrations to authenticated;
+grant select on public.attendance to authenticated;
 
 revoke all on function
   public.create_team(text, text),
@@ -700,7 +753,8 @@ revoke all on function
   public.admin_delete_team(uuid),
   public.admin_update_registration(uuid, text, text),
   public.admin_delete_registration(uuid),
-  public.admin_delete_submission(uuid)
+  public.admin_delete_submission(uuid),
+  public.admin_set_attendance(uuid, text, boolean)
 from public, anon;
 
 grant execute on function
@@ -720,7 +774,8 @@ grant execute on function
   public.admin_delete_team(uuid),
   public.admin_update_registration(uuid, text, text),
   public.admin_delete_registration(uuid),
-  public.admin_delete_submission(uuid)
+  public.admin_delete_submission(uuid),
+  public.admin_set_attendance(uuid, text, boolean)
 to authenticated;
 
 -- ------------------------------------------------------------- storage ----

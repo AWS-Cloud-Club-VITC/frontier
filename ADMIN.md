@@ -60,7 +60,7 @@ a raw table write.
   actually landed).
 - **Teams per track** — a running count so you can see if a track needs promoting.
 - **Reg desk panel** — the walk-in form above.
-- **Four tabs**, each backed by live data and each with its own **Download CSV**
+- **Five tabs**, each backed by live data and each with its own **Download CSV**
   button:
 
 | Tab | What it shows | CSV columns |
@@ -69,14 +69,21 @@ a raw table write.
 | **Teams** | One row per team — member count, lead, submission status at a glance | Team, Track, Join Code, Members, Lead Name, Lead Email, Submission |
 | **Submissions** | Every uploaded deck, with a direct download link per row | Team, Track, File Name, Version, Submitted By, Submitted At |
 | **Registrations** | The full allowlist — who's on it and how they got there | Email, Full Name, Registration No, Added By, Added At |
+| **Attendance** | One row per registration, with a checkbox per session — click to toggle | Email, Full Name, Registration No, Day 1 AM, Day 1 PM, Day 2 AM, Day 2 PM |
 
 The "Added By" column on the Registrations tab tells you whether a row came from the
 bulk **Excel import** or was added by a specific organiser at the **reg desk** (shown
 as that organiser's email) — useful if you need to trace back a walk-in later.
 
+The Attendance tab lists everyone in `registrations`, so a walk-in shows up there as
+soon as the reg desk adds them — no separate step needed. A box unchecked just means
+"not yet marked," not "confirmed absent," until someone at the door actually clicks
+it. Clicking is live — there's no separate save button, and no confirmation dialog,
+so double-check before toggling a box for the wrong row.
+
 Each CSV export hits `/admin/export?dataset=<name>` (`participants`, `teams`,
-`submissions`, or `registrations`) and re-checks that you're an admin server-side —
-the query param alone doesn't grant access.
+`submissions`, `registrations`, or `attendance`) and re-checks that you're an admin
+server-side — the query param alone doesn't grant access.
 
 ---
 

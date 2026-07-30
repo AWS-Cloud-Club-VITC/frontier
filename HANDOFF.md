@@ -6,6 +6,40 @@ from code changes.
 
 ---
 
+## 2026-07-30 — Admin: attendance tracking (4 sessions)
+
+### What changed and why
+
+Organisers needed a way to mark who actually showed up, per session — Day 1 AM/PM
+and Day 2 AM/PM — separate from who's registered or on a team. Registration already
+happens well ahead of the event; attendance is a same-day, per-session fact, so it
+needed its own table rather than overloading `registrations` or `profiles`.
+
+### Code changes
+
+| File | Change |
+|---|---|
+| `supabase/schema.sql` | **New `attendance` table** — one row per `(registration_id, session)`, `present` boolean, `marked_by`/`marked_at`. Keyed off `registrations` rather than `profiles` so attendance can be taken for anyone on the allowlist, including a walk-in who hasn't signed in yet. **New `admin_set_attendance(p_registration_id, p_session, p_present)` RPC** — admin-gated, upserts on the `(registration_id, session)` unique constraint so re-toggling a checkbox just updates the row. Admin-only select policy on `attendance`, no insert/update/delete policy — same "writes only through the RPC" pattern as `teams`/`registrations`. |
+| `lib/constants.ts` | Added `ATTENDANCE_SESSIONS` (the four session keys + display labels) and the `AttendanceSession` type. |
+| `app/actions.ts` | Added `adminSetAttendance()` — called directly from the checkbox's `onChange` (not a `<form>`, since a live toggle doesn't fit the app's `useActionState` form pattern used elsewhere). |
+| `app/admin/attendance-row.tsx` | **New.** Client component — one row per registration, a checkbox per session, optimistic toggle with rollback on error. Resyncs its local state from props via `useEffect` so a second admin's concurrent change shows up without a hard reload. |
+| `app/admin/data-tabs.tsx` | Added the **Attendance** tab (5th tab) alongside Participants/Teams/Submissions/Registrations. |
+| `app/admin/page.tsx` | Fetches `attendance` alongside the other datasets, builds one row per registration defaulting every unmarked session to absent. |
+| `app/admin/export/route.ts` | Added `?dataset=attendance` — Email/Full Name/Reg No + Present/Absent per session. |
+
+No schema or RLS changes to any existing table — `profiles`, `teams`, `submissions`,
+`registrations`, and the `auth.users` triggers are all untouched.
+
+### ⚠️ Manual step required (already done for this deploy)
+
+Run the additive SQL block (table + RPC + RLS + grants for `attendance` only) in the
+Supabase SQL editor — **not** a full re-run of `schema.sql`, to avoid touching the
+`auth.users` triggers while sign-ins may be happening live. The block is idempotent,
+same as the rest of the file, so it's safe to re-paste if you're ever unsure whether
+it already ran.
+
+---
+
 ## 2026-07-29 — Correction: upload cap is 8MB, not 25MB
 
 The entry below (2026-07-28) describes bumping the cap to 25MB — that's since

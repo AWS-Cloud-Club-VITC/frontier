@@ -4,9 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getProfile, getSubmissionDownloadUrl } from "@/lib/data";
 import { AppHeader } from "@/components/app-header";
 import { Chip, Panel } from "@/components/ui";
-import { TRACKS } from "@/lib/constants";
+import { ATTENDANCE_SESSIONS, TRACKS, type AttendanceSession } from "@/lib/constants";
 import { WalkinForm } from "./walkin-form";
-import { DataTabs, type ParticipantRow, type RegistrationRow, type SubmissionRow, type TeamRow } from "./data-tabs";
+import {
+  DataTabs,
+  type AttendanceRow,
+  type ParticipantRow,
+  type RegistrationRow,
+  type SubmissionRow,
+  type TeamRow,
+} from "./data-tabs";
 
 export const metadata = { title: "Organisers · FRONTIER 2026" };
 export const dynamic = "force-dynamic";
@@ -42,6 +49,12 @@ type RegistrationQueryRow = {
   created_at: string;
 };
 
+type AttendanceQueryRow = {
+  registration_id: string;
+  session: AttendanceSession;
+  present: boolean;
+};
+
 export default async function AdminPage() {
   const profile = await getProfile();
   if (!profile) redirect("/login");
@@ -71,27 +84,33 @@ export default async function AdminPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: profilesData }, { data: submissionsData }, { data: registrationsData }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select(
-          "id, full_name, reg_no, email, phone, year, team_id, teams(id, name, track, join_code, leader_id)"
-        )
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("submissions")
-        .select("id, team_id, file_name, file_path, version, submitted_by, submitted_at, teams(name, track)")
-        .order("submitted_at", { ascending: true }),
-      supabase
-        .from("registrations")
-        .select("id, email, full_name, reg_no, added_by, created_at")
-        .order("created_at", { ascending: true }),
-    ]);
+  const [
+    { data: profilesData },
+    { data: submissionsData },
+    { data: registrationsData },
+    { data: attendanceData },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        "id, full_name, reg_no, email, phone, year, team_id, teams(id, name, track, join_code, leader_id)"
+      )
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("submissions")
+      .select("id, team_id, file_name, file_path, version, submitted_by, submitted_at, teams(name, track)")
+      .order("submitted_at", { ascending: true }),
+    supabase
+      .from("registrations")
+      .select("id, email, full_name, reg_no, added_by, created_at")
+      .order("created_at", { ascending: true }),
+    supabase.from("attendance").select("registration_id, session, present"),
+  ]);
 
   const rows = (profilesData ?? []) as unknown as ProfileRow[];
   const submissionRows = (submissionsData ?? []) as unknown as SubmissionQueryRow[];
   const registrationRows = (registrationsData ?? []) as unknown as RegistrationQueryRow[];
+  const attendanceRows = (attendanceData ?? []) as unknown as AttendanceQueryRow[];
 
   const registered = rows.length;
   const completed = rows.filter((r) => r.full_name && r.reg_no).length;
@@ -173,6 +192,28 @@ export default async function AdminPage() {
     created_at: r.created_at,
   }));
 
+  // ---- attendance tab ----
+  const attendanceByRegistration = new Map<string, Partial<Record<AttendanceSession, boolean>>>();
+  for (const a of attendanceRows) {
+    if (!attendanceByRegistration.has(a.registration_id)) {
+      attendanceByRegistration.set(a.registration_id, {});
+    }
+    attendanceByRegistration.get(a.registration_id)![a.session] = a.present;
+  }
+  const attendance: AttendanceRow[] = registrationRows.map((r) => {
+    const marked = attendanceByRegistration.get(r.id) ?? {};
+    const sessions = Object.fromEntries(
+      ATTENDANCE_SESSIONS.map((s) => [s.key, marked[s.key] ?? false])
+    ) as Record<AttendanceSession, boolean>;
+    return {
+      registrationId: r.id,
+      email: r.email,
+      full_name: r.full_name,
+      reg_no: r.reg_no,
+      sessions,
+    };
+  });
+
   return (
     <div className="min-h-screen bg-purple-wash">
       <AppHeader email={profile.email} isAdmin />
@@ -239,6 +280,7 @@ export default async function AdminPage() {
           teams={teams}
           submissions={submissions}
           registrations={registrations}
+          attendance={attendance}
         />
       </main>
     </div>
